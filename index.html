@@ -461,7 +461,7 @@ input[readonly] {
         <p class="ro-note" id="t2-chips-cost-note" style="display:none;">↑ from Tab 1</p>
       </div>
       <div>
-        <label class="no-top" for="t2-table-bill">Bill + Tips ($)</label>
+        <label class="no-top" for="t2-table-bill">Table Bill ($)</label>
         <input type="number" id="t2-table-bill" placeholder="0.00" min="0" step="0.01"
                oninput="onSharedChange()">
         <p class="ro-note" id="t2-table-bill-note" style="display:none;">↑ from Tab 1</p>
@@ -595,15 +595,12 @@ const esc  = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 //  costPerChip  = $ value of one chip (same for everyone)
 //  myChipsCost  = chipsBought × costPerChip  (what this player paid)
 //  chipPnL      = (chipsEnd − chipsBought) × costPerChip
-//               = net chips gained/lost × value per chip
 //
 //  Normal player:
-//    balance = chipPnL − myDishes − buyIn
+//    balance = chipPnL − myDishes − tipShare
 //
-//  Bill payer (covered the full table bill upfront):
-//    Others owe them back the full tableBill.
-//    They still pay their own dishes (included in tableBill).
-//    balance = chipPnL − myDishes − buyIn + tableBill
+//  Bill payer (covered the full table bill + tips upfront):
+//    balance = chipPnL − myDishes − tipShare + tableBill + tipTotal
 // ═══════════════════════════════════════════════════════════
 
 function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, tipShare, tipTotal }) {
@@ -804,7 +801,8 @@ function syncMyRowToPlayers() {
 
 // ═══════════════════════════════════════════════════════════
 //  TAB 2: SHARED FIELDS
-//  Table bill mirrors Tab 1 and becomes read-only when set.
+//  Table bill and cost-per-chip are derived from Tab 1 when
+//  available, becoming read-only. Otherwise entered manually.
 // ═══════════════════════════════════════════════════════════
 
 function refreshSharedFields() {
@@ -830,8 +828,9 @@ function refreshSharedFields() {
   const billEl   = $('t2-table-bill');
   const billNote = $('t2-table-bill-note');
   if (t1bill > 0) {
-    billEl.value    = combined.toFixed(2);
+    billEl.value    = t1bill.toFixed(2);
     billEl.readOnly = true;
+    billNote.textContent = `↑ from Tab 1${tipPctSF > 0 ? ` · incl. tip: $${combined.toFixed(2)}` : ''}`;
     billNote.style.display = 'block';
   } else {
     billEl.readOnly = false;
@@ -930,7 +929,10 @@ function getCostPerChip() {
   // Fallback: manual entry in Tab 2 (no Tab 1 data)
   return gv('t2-chips-cost');
 }
-// The t2-table-bill display field is never used in computation.
+// t2-table-bill always stores the pre-tip bill (raw).
+// When derived from Tab 1 it is set to t1-total-bill directly.
+// When manually entered, the user enters the pre-tip bill.
+// Tip is always computed separately as tableBill * tipPct / 100.
 function getTab2BillFigures() {
   const tableBill = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
   const tipPct    = gv('t2-tip-pct');
@@ -1108,10 +1110,9 @@ function refreshSummary() {
   }
 
   // ── Money reconciliation ──
-  // moneyIn  = Σ(myChipsCost × chipsBought proportion) + Σ buyIn + tableBill
-  //          = totalChipsCost + Σ buyIn + tableBill
-  // moneyOut = Σ myDishes + totalChipsCost
-  // Difference = tableBill − Σ myDishes + Σ buyIn = Σ buyIn (expected)
+  // moneyIn  = totalChipsCost + tableBill
+  // moneyOut = totalDishes + totalChipsCost
+  // These balance when Σ myDishes = tableBill.
   const totalChipsCost = active.reduce((s, p) => s + (p.chipsBought || 0) * costPerChip, 0);
   let totalDishes = 0;
   active.forEach(p => {
