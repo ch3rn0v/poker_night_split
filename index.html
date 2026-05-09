@@ -196,7 +196,18 @@ input[readonly] {
 .toggle input:checked + .toggle-slider { background: var(--gold); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
 
-/* ── SHARE BUTTON ───────────────────────────────────────── */
+/* ── CLEAR BUTTON ───────────────────────────────────────── */
+.btn-clear {
+  width: 100%; margin-top: 8px; padding: 11px;
+  background: transparent; border: 1.5px solid #c08080; border-radius: 9px;
+  color: #c08080; font-family: 'IM Fell English SC', serif;
+  font-size: .9rem; letter-spacing: .08em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  position: relative; overflow: hidden;
+}
+.btn-clear .ripple {
+  background: radial-gradient(circle, rgba(192,128,128,.45) 0%, rgba(192,128,128,0) 70%);
+}
 .btn-share {
   width: 100%; margin-top: 14px; padding: 13px;
   background: transparent; border: 2px solid var(--gold-dim); border-radius: 9px;
@@ -407,7 +418,7 @@ input[readonly] {
     <label for="t1-total-bill">Total Table Bill ($)</label>
     <input type="number" id="t1-total-bill" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
     <div class="check-row" onclick="toggleCheck('t1-covered')">
-      <input type="checkbox" id="t1-covered" onclick="event.stopPropagation(); onAnyInput()">
+      <input type="checkbox" id="t1-covered" checked onclick="event.stopPropagation(); onAnyInput()">
       <div>
         <div class="check-label">I covered the table's bill</div>
         <div class="check-sub">You paid for everyone — others will owe you back</div>
@@ -449,6 +460,7 @@ input[readonly] {
   </div>
 
   <button class="btn-share" onclick="share()">♠ Share Setup</button>
+  <button class="btn-clear" onclick="clearAll()">✕ Clear All</button>
   <div class="deck-footer">— ♠ ♥ ♦ ♣ —</div>
 </section>
 <section class="tab-panel" id="tab2">
@@ -531,12 +543,12 @@ input[readonly] {
     <!-- Money reconciliation -->
     <div style="margin-top:4px;" id="money-recon-section">
       <div class="summary-grid">
-        <div class="summary-chip">
+        <div class="summary-chip" id="sc-money-in-chip">
           <div class="sc-label">Money In</div>
           <div class="sc-value" id="sc-money-in-val">—</div>
           <div class="sc-sub">chips + buy-ins + bill</div>
         </div>
-        <div class="summary-chip">
+        <div class="summary-chip" id="sc-money-out-chip">
           <div class="sc-label">Money Out</div>
           <div class="sc-value" id="sc-money-out-val">—</div>
           <div class="sc-sub">dishes + chips cost</div>
@@ -567,6 +579,7 @@ input[readonly] {
   </div>
 
   <button class="btn-share" onclick="share()">♣ Share Setup</button>
+  <button class="btn-clear" onclick="clearAll()">✕ Clear All</button>
   <div class="deck-footer">— ♠ ♥ ♦ ♣ —</div>
 </section>
 <nav class="tab-bar">
@@ -624,7 +637,7 @@ const esc  = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 //    balance = chipPnL − myDishes − buyIn + tableBill
 // ═══════════════════════════════════════════════════════════
 
-function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare }) {
+function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare, tipTotal }) {
   const cb  = chipsBought || 0;
   const cpc = costPerChip || 0;
   const ce  = chipsEnd    || 0;
@@ -632,11 +645,14 @@ function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBil
   const tb  = tableBill   || 0;
   const bi  = buyIn       || 0;
   const ts  = tipShare    || 0;
+  const tt  = tipTotal    || 0;
 
   // net chip gain/loss in dollars
   const chipPnL = (ce - cb) * cpc;
 
-  const balance = chipPnL - md - bi - ts + (isBillPayer ? tb : 0);
+  // Bill payer covered the full table bill AND all tips.
+  // They are owed back tableBill + tipTotal by the group.
+  const balance = chipPnL - md - bi - ts + (isBillPayer ? tb + tt : 0);
 
   return { chipPnL, myChipsCost: cb * cpc, balance };
 }
@@ -957,10 +973,8 @@ function refreshPlayerComputed(p) {
   const billPayerId = $('t2-bill-payer').value;
   const isBP        = p.id === billPayerId;
 
-  // tip share: proportional to this player's dishes vs total table bill
-  const tipShare = tableBill > 0 ? (p.myDishes || 0) / tableBill * (tableBill * tipPct / 100) : 0;
-  // simplifies to: myDishes * tipPct / 100
-  // kept explicit for clarity
+  const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+  const tipTotal = tableBill * tipPct / 100;
 
   const { chipPnL, balance } = computeBalance({
     chipsBought: p.chipsBought || 0,
@@ -971,6 +985,7 @@ function refreshPlayerComputed(p) {
     isBillPayer: isBP,
     buyIn:       p.buyIn       || 0,
     tipShare,
+    tipTotal,
   });
 
   const tipLine = tipPct > 0 && tipShare > 0
@@ -1063,7 +1078,7 @@ function refreshSummary() {
     const { chipPnL, balance } = computeBalance({
       chipsBought: p.chipsBought || 0, costPerChip,
       chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
-      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare,
+      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare, tipTotal,
     });
     totalPnL += chipPnL;
     netBal   += balance;
@@ -1133,14 +1148,21 @@ function refreshSummary() {
   $('sc-money-in-val').textContent  = active.length ? fmt(moneyIn)  : '—';
   $('sc-money-out-val').textContent = active.length ? fmt(moneyOut) : '—';
 
-  const moneyWarn = $('money-recon-warning');
+  const scMoneyIn  = $('sc-money-in-chip');
+  const scMoneyOut = $('sc-money-out-chip');
+  const moneyWarn  = $('money-recon-warning');
   if (active.length >= 2 && Math.abs(moneyDiff) > 0.05) {
     moneyWarn.style.display = 'flex';
     $('money-recon-warning-text').textContent = totalBuyIn > 0.05
       ? `Difference of ${fmt(moneyDiff)} = total buy-ins (${fmt(totalBuyIn)}). Expected.`
       : `Money doesn't balance — difference of ${fmt(moneyDiff)}. Check dishes vs table bill.`;
+    scMoneyIn.classList.remove('ok'); scMoneyOut.classList.remove('ok');
+  } else if (active.length >= 2) {
+    moneyWarn.style.display = 'none';
+    scMoneyIn.classList.add('ok'); scMoneyOut.classList.add('ok');
   } else {
     moneyWarn.style.display = 'none';
+    scMoneyIn.classList.remove('ok'); scMoneyOut.classList.remove('ok');
   }
 }
 
@@ -1161,12 +1183,14 @@ function computeSettlement() {
     return;
   }
 
+  const tipTotal = tableBill * tipPct / 100;
+
   const bals = active.map(p => {
     const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
     const { balance } = computeBalance({
       chipsBought: p.chipsBought || 0, costPerChip,
       chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
-      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare,
+      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare, tipTotal,
     });
     return { name: p.name, amount: balance };
   });
@@ -1239,7 +1263,7 @@ function loadTab1() {
     $('t1-chips-cost').value     = s.chipsCost   || '';
     $('t1-chips-bought').value   = s.chipsBought || '';
     $('t1-chips-end').value      = s.chipsEnd    || '';
-    $('t1-covered').checked      = !!s.covered;
+    $('t1-covered').checked      = s.covered !== undefined ? !!s.covered : true;
     $('t1-buyin-toggle').checked = !!s.buyInOn;
     if (s.buyInOn) {
       $('buyin-amount-wrap').style.display = 'block';
@@ -1395,6 +1419,61 @@ function share() {
   doShare(buildShareURL(true, true), 'Poker Night Split');
 }
 
+function clearAll() {
+  // ── Tab 1 ──
+  $('t1-name').value          = '';
+  $('t1-total-bill').value    = '';
+  $('t1-chips-cost').value    = '';
+  $('t1-chips-bought').value  = '';
+  $('t1-chips-end').value     = '';
+  $('t1-covered').checked     = true;
+  $('t1-buyin-toggle').checked = false;
+  $('t1-buyin').value         = '';
+  $('buyin-amount-wrap').style.display = 'none';
+  // Reset dish list to a single empty row
+  const list = $('dish-list');
+  list.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'dish-row';
+  row.innerHTML = `<input type="number" class="dish-input" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()"><button class="btn-icon" onclick="addDish()">+</button>`;
+  list.appendChild(row);
+  $('result-section').style.display = 'none';
+
+  // ── Tab 2 ──
+  players = [];
+  $('t2-chips-cost').value    = '';
+  $('t2-chips-cost').readOnly = false;
+  $('t2-chips-cost-note').style.display = 'none';
+  $('t2-table-bill').value    = '';
+  $('t2-table-bill').readOnly = false;
+  $('t2-table-bill-note').style.display = 'none';
+  $('t2-tip-pct').value       = '10';
+  $('t2-tip-amt').value       = '';
+  $('settlement-output').innerHTML = '<div class="empty-state">Add players and hit Compute.</div>';
+
+  // ── Persist & refresh ──
+  localStorage.clear();
+  const newId = 'sid_' + Math.random().toString(36).slice(2, 9);
+  localStorage.setItem('pns_sid', newId);
+
+  // Strip query params — wrapped in try/catch as some WebViews restrict this
+  try {
+    if (history.replaceState) {
+      const clean = location.href.split('?')[0];
+      history.replaceState(null, '', clean);
+    }
+  } catch (e) { /* silently ignore in restricted WebViews */ }
+
+  buildPlayerList();
+  refreshBillPayerDropdown();
+  refreshPlayerComputedAll();
+  refreshSummary();
+  attachEnterKey();
+  attachRipples();
+
+  showToast('All cleared ✓');
+}
+
 let _toastTimer = null;
 function showToast(msg) {
   const t = $('toast');
@@ -1525,7 +1604,7 @@ function jumpToTab1(fieldId) {
 // ═══════════════════════════════════════════════════════════
 
 function attachRipples() {
-  document.querySelectorAll('.btn-primary, .btn-share, .btn-remove').forEach(btn => {
+  document.querySelectorAll('.btn-primary, .btn-share, .btn-remove, .btn-clear').forEach(btn => {
     btn.addEventListener('touchstart', spawnRipple, { passive: true });
     btn.addEventListener('mousedown',  spawnRipple);
   });
