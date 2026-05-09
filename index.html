@@ -181,20 +181,6 @@ input[readonly] {
 .check-label { font-size: .8rem; font-weight: 700; color: var(--ink-mid); line-height: 1.3; }
 .check-sub   { font-size: .68rem; color: var(--ink-light); margin-top: 1px; }
 
-/* ── TOGGLE (buy-in) ───────────────────────────────────── */
-.toggle-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-.toggle-label { font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-light); }
-.toggle { position: relative; width: 44px; height: 26px; }
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider { position: absolute; inset: 0; background: #ccc5b0; border-radius: 13px; transition: background .2s; }
-.toggle-slider::before {
-  content: ''; position: absolute;
-  width: 20px; height: 20px; background: #fff; border-radius: 50%;
-  top: 3px; left: 3px; transition: transform .2s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.2);
-}
-.toggle input:checked + .toggle-slider { background: var(--gold); }
-.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
 
 /* ── CLEAR BUTTON ───────────────────────────────────────── */
 .btn-clear {
@@ -446,17 +432,6 @@ input[readonly] {
     <input type="number" id="t1-chips-bought" placeholder="e.g. 100" min="0" step="1" oninput="onAnyInput()">
     <label for="t1-chips-end">My Final Chip Count</label>
     <input type="number" id="t1-chips-end" placeholder="0" min="0" step="1" oninput="onAnyInput()">
-    <div class="toggle-row">
-      <span class="toggle-label">Optional Buy-in?</span>
-      <label class="toggle">
-        <input type="checkbox" id="t1-buyin-toggle" onchange="toggleBuyin()">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-    <div id="buyin-amount-wrap" style="display:none;">
-      <label for="t1-buyin">Buy-in Amount ($)</label>
-      <input type="number" id="t1-buyin" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
-    </div>
   </div>
 
   <div id="result-section" class="card" style="display:none;">
@@ -521,7 +496,7 @@ input[readonly] {
         <div class="summary-chip" id="sc-chips-start">
           <div class="sc-label">Chips In</div>
           <div class="sc-value" id="sc-chips-start-val">—</div>
-          <div class="sc-sub">bought + buy-ins</div>
+          <div class="sc-sub">chips bought</div>
         </div>
         <div class="summary-chip" id="sc-chips-end">
           <div class="sc-label">Chips Out</div>
@@ -540,7 +515,7 @@ input[readonly] {
         <div class="summary-chip" id="sc-money-in-chip">
           <div class="sc-label">Money In</div>
           <div class="sc-value" id="sc-money-in-val">—</div>
-          <div class="sc-sub">chips + buy-ins + bill</div>
+          <div class="sc-sub">chips + bill</div>
         </div>
         <div class="summary-chip" id="sc-money-out-chip">
           <div class="sc-label">Money Out</div>
@@ -631,22 +606,17 @@ const esc  = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 //    balance = chipPnL − myDishes − buyIn + tableBill
 // ═══════════════════════════════════════════════════════════
 
-function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare, tipTotal }) {
+function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, tipShare, tipTotal }) {
   const cb  = chipsBought || 0;
   const cpc = costPerChip || 0;
   const ce  = chipsEnd    || 0;
   const md  = myDishes    || 0;
   const tb  = tableBill   || 0;
-  const bi  = buyIn       || 0;
   const ts  = tipShare    || 0;
   const tt  = tipTotal    || 0;
 
-  // net chip gain/loss in dollars
   const chipPnL = (ce - cb) * cpc;
-
-  // Bill payer covered the full table bill AND all tips.
-  // They are owed back tableBill + tipTotal by the group.
-  const balance = chipPnL - md - bi - ts + (isBillPayer ? tb + tt : 0);
+  const balance = chipPnL - md - ts + (isBillPayer ? tb + tt : 0);
 
   return { chipPnL, myChipsCost: cb * cpc, balance };
 }
@@ -711,11 +681,6 @@ function toggleCheck(id) {
   onAnyInput();
 }
 
-function toggleBuyin() {
-  $('buyin-amount-wrap').style.display = gc('t1-buyin-toggle') ? 'block' : 'none';
-  onAnyInput();
-}
-
 // ═══════════════════════════════════════════════════════════
 //  TAB 1 — MAIN CALCULATE
 // ═══════════════════════════════════════════════════════════
@@ -733,8 +698,6 @@ function calculateTab1() {
   const tableBill   = gv('t1-total-bill');
   const myDishes    = getDishTotal();
   const isBillPayer = gc('t1-covered');
-  const buyInOn     = gc('t1-buyin-toggle');
-  const buyIn       = buyInOn ? gv('t1-buyin') : 0;
   const costPerChip = chipsBought > 0 ? myChipsCost / chipsBought : 0;
   const tipPct      = gv('t2-tip-pct');
   const tipShare    = myDishes * tipPct / 100;
@@ -751,7 +714,7 @@ function calculateTab1() {
   sec.style.display = 'block';
 
   const { chipPnL, balance } = computeBalance({
-    chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare, tipTotal,
+    chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, tipShare, tipTotal,
   });
 
   // Formula display
@@ -766,27 +729,23 @@ function calculateTab1() {
 
   if (isBillPayer) {
     html += `
-    <div class="fexpr">Balance = chipPnL − myDishes − tipShare − buyIn + tableBill + tipTotal</div>
+    <div class="fexpr">Balance = chipPnL − myDishes − tipShare + tableBill + tipTotal</div>
     <div class="fexpr">You covered the table &amp; tips — you're owed back the full bill + tips.</div>
     <div class="fline"><span class="fname">My dishes</span>
       <span class="fval neg">−${fmt(myDishes)}</span></div>
     ${tipShare > 0 ? `<div class="fline"><span class="fname">My tip share (${tipPct}%)</span>
       <span class="fval neg">−${fmt(tipShare)}</span></div>` : ''}
-    ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
-      <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}
     <div class="fline"><span class="fname">Table bill (owed to me)</span>
       <span class="fval pos">+${fmt(tableBill)}</span></div>
     ${tipTotal > 0 ? `<div class="fline"><span class="fname">Total tip (owed to me)</span>
       <span class="fval pos">+${fmt(tipTotal)}</span></div>` : ''}`;
   } else {
     html += `
-    <div class="fexpr">Balance = chipPnL − myDishes − tipShare − buyIn</div>
+    <div class="fexpr">Balance = chipPnL − myDishes − tipShare</div>
     <div class="fline"><span class="fname">My dishes</span>
       <span class="fval neg">−${fmt(myDishes)}</span></div>
     ${tipShare > 0 ? `<div class="fline"><span class="fname">My tip share (${tipPct}%)</span>
-      <span class="fval neg">−${fmt(tipShare)}</span></div>` : ''}
-    ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
-      <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}`;
+      <span class="fval neg">−${fmt(tipShare)}</span></div>` : ''}`;
   }
 
   html += `
@@ -827,7 +786,6 @@ function syncMyRowToPlayers() {
     chipsBought: gv('t1-chips-bought'),
     chipsEnd:    gv('t1-chips-end'),
     myDishes:    getDishTotal(),
-    buyIn:       gc('t1-buyin-toggle') ? gv('t1-buyin') : 0,
   };
 
   if (idx !== -1) players[idx] = entry;
@@ -956,12 +914,6 @@ function buildPlayerList() {
                  value="${p.myDishes || ''}" placeholder="0.00" ${ro}
                  ${p.locked ? `onclick="jumpToTab1('dish')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'myDishes')"`}>
         </div>
-        <div class="pfield">
-          <label>Buy-in ($)</label>
-          <input type="number" step="0.01" min="0"
-                 value="${p.buyIn || ''}" placeholder="0.00" ${ro}
-                 ${p.locked ? `onclick="jumpToTab1('t1-buyin')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'buyIn')"`}>
-        </div>
       </div>
       <div class="player-computed" id="pc-${p.id}"></div>`;
 
@@ -969,19 +921,12 @@ function buildPlayerList() {
   });
 }
 
-// Derives raw tableBill and tipTotal from the combined t2-table-bill field.
-// t2-table-bill stores tableBill * (1 + tipPct/100).
-// If not derived from Tab 1, treat the field value as raw tableBill (tipPct applied on top).
+// Always derive tableBill and tipTotal from Tab 1 source fields directly.
+// The t2-table-bill display field is never used in computation.
 function getTab2BillFigures() {
-  const combinedBill = gv('t2-table-bill');
-  const tipPct       = gv('t2-tip-pct');
-  const isFromTab1   = $('t2-table-bill').readOnly;
-  // When read-only, field = tableBill * (1 + tipPct/100)
-  // When manual, field is the raw tableBill entered by the user
-  const tableBill = isFromTab1 && tipPct > 0
-    ? combinedBill / (1 + tipPct / 100)
-    : combinedBill;
-  const tipTotal = tableBill * tipPct / 100;
+  const tableBill = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
+  const tipPct    = gv('t2-tip-pct');
+  const tipTotal  = tableBill * tipPct / 100;
   return { tableBill, tipTotal, tipPct };
 }
 
@@ -994,7 +939,7 @@ function refreshPlayerComputed(p) {
   const billPayerId = getBillPayerId();
   const isBP        = p.id === billPayerId;
 
-  const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+  const tipShare = (p.myDishes || 0) * tipPct / 100;
 
   const { chipPnL, balance } = computeBalance({
     chipsBought: p.chipsBought || 0,
@@ -1003,7 +948,6 @@ function refreshPlayerComputed(p) {
     myDishes:    p.myDishes    || 0,
     tableBill,
     isBillPayer: isBP,
-    buyIn:       p.buyIn       || 0,
     tipShare,
     tipTotal,
   });
@@ -1056,7 +1000,7 @@ function onPlayerFieldInput(el, id, field) {
 function addPlayer() {
   players.push({
     id: 'manual_' + Date.now(), name: '', locked: false,
-    chipsBought: 0, chipsEnd: 0, myDishes: 0, buyIn: 0,
+    chipsBought: 0, chipsEnd: 0, myDishes: 0,
   });
   savePlayers();
   buildPlayerList();
@@ -1089,11 +1033,11 @@ function refreshSummary() {
   // ── Balance & Chip P&L totals ──
   let totalPnL = 0, netBal = 0;
   active.forEach(p => {
-    const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+    const tipShare = (p.myDishes || 0) * tipPct / 100;
     const { chipPnL, balance } = computeBalance({
       chipsBought: p.chipsBought || 0, costPerChip,
       chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
-      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare, tipTotal,
+      tableBill, isBillPayer: p.id === billPayerId, tipShare, tipTotal,
     });
     totalPnL += chipPnL;
     netBal   += balance;
@@ -1150,13 +1094,12 @@ function refreshSummary() {
   // moneyOut = Σ myDishes + totalChipsCost
   // Difference = tableBill − Σ myDishes + Σ buyIn = Σ buyIn (expected)
   const totalChipsCost = active.reduce((s, p) => s + (p.chipsBought || 0) * costPerChip, 0);
-  let totalBuyIn = 0, totalDishes = 0;
+  let totalDishes = 0;
   active.forEach(p => {
-    totalBuyIn   += p.buyIn    || 0;
     totalDishes  += p.myDishes || 0;
   });
 
-  const moneyIn   = totalChipsCost + totalBuyIn + tableBill;
+  const moneyIn   = totalChipsCost + tableBill;
   const moneyOut  = totalDishes + totalChipsCost;
   const moneyDiff = moneyIn - moneyOut;
 
@@ -1168,9 +1111,7 @@ function refreshSummary() {
   const moneyWarn  = $('money-recon-warning');
   if (active.length >= 2 && Math.abs(moneyDiff) > 0.05) {
     moneyWarn.style.display = 'flex';
-    $('money-recon-warning-text').textContent = totalBuyIn > 0.05
-      ? `Difference of ${fmt(moneyDiff)} = total buy-ins (${fmt(totalBuyIn)}). Expected.`
-      : `Money doesn't balance — difference of ${fmt(moneyDiff)}. Check dishes vs table bill.`;
+    $('money-recon-warning-text').textContent = `Money doesn't balance — difference of ${fmt(moneyDiff)}. Check dishes vs table bill.`;
     scMoneyIn.classList.remove('ok'); scMoneyOut.classList.remove('ok');
   } else if (active.length >= 2) {
     moneyWarn.style.display = 'none';
@@ -1198,11 +1139,11 @@ function computeSettlement() {
   }
 
   const bals = active.map(p => {
-    const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+    const tipShare = (p.myDishes || 0) * tipPct / 100;
     const { balance } = computeBalance({
       chipsBought: p.chipsBought || 0, costPerChip,
       chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
-      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare, tipTotal,
+      tableBill, isBillPayer: p.id === billPayerId, tipShare, tipTotal,
     });
     return { name: p.name, amount: balance };
   });
@@ -1260,8 +1201,6 @@ function saveTab1() {
     chipsCost:   $('t1-chips-cost').value,
     chipsBought: $('t1-chips-bought').value,
     chipsEnd:    $('t1-chips-end').value,
-    buyInOn:     gc('t1-buyin-toggle'),
-    buyIn:       $('t1-buyin').value,
   }));
 }
 
@@ -1276,11 +1215,6 @@ function loadTab1() {
     $('t1-chips-bought').value   = s.chipsBought || '';
     $('t1-chips-end').value      = s.chipsEnd    || '';
     $('t1-covered').checked      = s.covered !== undefined ? !!s.covered : true;
-    $('t1-buyin-toggle').checked = !!s.buyInOn;
-    if (s.buyInOn) {
-      $('buyin-amount-wrap').style.display = 'block';
-      $('t1-buyin').value = s.buyIn || '';
-    }
     const list = $('dish-list');
     list.innerHTML = '';
     (s.dishes && s.dishes.length ? s.dishes : ['']).forEach((val, i) => {
@@ -1348,8 +1282,6 @@ const TAB1_PARAMS = [
   { key: 'cc', id: 't1-chips-cost',   type: 'number'   },
   { key: 'cb', id: 't1-chips-bought', type: 'number'   },
   { key: 'ce', id: 't1-chips-end',    type: 'number'   },
-  { key: 'bt', id: 't1-buyin-toggle', type: 'checkbox' },
-  { key: 'bi', id: 't1-buyin',        type: 'number'   },
 ];
 
 const TAB2_PARAMS = [
@@ -1391,7 +1323,6 @@ function buildShareURL(includeTab1, includeTab2) {
       if (pl.chipsBought) p.set(`p${i}_cb`, pl.chipsBought);
       if (pl.chipsEnd)    p.set(`p${i}_ce`, pl.chipsEnd);
       if (pl.myDishes)    p.set(`p${i}_md`, pl.myDishes);
-      if (pl.buyIn)       p.set(`p${i}_bi`, pl.buyIn);
     });
     if (manualPlayers.length) p.set('pc', manualPlayers.length);
 
@@ -1434,9 +1365,6 @@ function clearAll() {
   $('t1-chips-bought').value  = '';
   $('t1-chips-end').value     = '';
   $('t1-covered').checked     = true;
-  $('t1-buyin-toggle').checked = false;
-  $('t1-buyin').value         = '';
-  $('buyin-amount-wrap').style.display = 'none';
   // Reset dish list to a single empty row
   const list = $('dish-list');
   list.innerHTML = '';
@@ -1526,11 +1454,6 @@ function applyURLParams() {
     }
   }
 
-  // buyin toggle — show wrapper if now checked
-  if (gc('t1-buyin-toggle')) {
-    $('buyin-amount-wrap').style.display = 'block';
-  }
-
   // Tab 2 shared fields — only fill if empty and not read-only (derived from Tab 1)
   const cpc = p.get('cpc');
   if (cpc && !$('t2-chips-cost').value.trim() && !$('t2-chips-cost').readOnly) {
@@ -1558,7 +1481,6 @@ function applyURLParams() {
         chipsBought: parseFloat(p.get(`p${i}_cb`) || '0') || 0,
         chipsEnd:    parseFloat(p.get(`p${i}_ce`) || '0') || 0,
         myDishes:    parseFloat(p.get(`p${i}_md`) || '0') || 0,
-        buyIn:       parseFloat(p.get(`p${i}_bi`) || '0') || 0,
       });
     }
   }
@@ -1580,20 +1502,11 @@ function applyURLParams() {
 
 function jumpToTab1(fieldId) {
   switchTab('tab1');
-  // Small delay so the tab transition completes and the element is visible
   setTimeout(() => {
     let el;
     if (fieldId === 'dish') {
-      // Focus the first dish input (or last if more than one)
       const dishes = document.querySelectorAll('.dish-input');
       el = dishes[dishes.length - 1];
-    } else if (fieldId === 't1-buyin') {
-      // Ensure buy-in section is visible before focusing
-      if (!gc('t1-buyin-toggle')) {
-        $('t1-buyin-toggle').checked = true;
-        $('buyin-amount-wrap').style.display = 'block';
-      }
-      el = $('t1-buyin');
     } else {
       el = $(fieldId);
     }
