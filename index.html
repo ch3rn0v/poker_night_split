@@ -578,7 +578,7 @@ const SESSION_ID = (() => {
   return id;
 })();
 
-// Each player: { id, name, chipsBought, chipsCost, chipsEnd, myDishes, buyIn, locked }
+// Each player: { id, name, chipsBought, chipsEnd, myDishes, locked }
 let players = [];
 
 // ═══════════════════════════════════════════════════════════
@@ -918,17 +918,12 @@ function getCostPerChip() {
   // Fallback: manual entry in Tab 2 (no Tab 1 data)
   return gv('t2-chips-cost');
 }
-// t2-table-bill stores the post-tip total (tableBill × (1 + tipPct/100)).
-// Whether auto-filled from Tab 1 or manually entered, the user sees and enters
-// the combined total. We back-calculate the raw bill here.
+// t2-table-bill is read-only and always auto-filled from Tab 1 as the display
+// value (tableBill × (1 + tipPct/100)). Raw tableBill is always taken directly
+// from the Tab 1 source field — no back-division needed.
 function getTab2BillFigures() {
-  const combined  = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
-  // If coming from Tab 1 we have the raw bill directly — no need to divide
-  const t1bill    = parseFloat($('t1-total-bill').value) || 0;
+  const tableBill = parseFloat($('t1-total-bill').value) || 0;
   const tipPct    = gv('t2-tip-pct');
-  const tableBill = t1bill > 0
-    ? t1bill
-    : (tipPct > 0 ? combined / (1 + tipPct / 100) : combined);
   const tipTotal  = tableBill * tipPct / 100;
   return { tableBill, tipTotal, tipPct };
 }
