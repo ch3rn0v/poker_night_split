@@ -417,6 +417,16 @@ input[readonly] {
     </div>
     <label for="t1-total-bill">Total Table Bill ($)</label>
     <input type="number" id="t1-total-bill" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+    <div class="shared-grid" style="margin-top:10px;">
+      <div>
+        <label class="no-top" for="t2-tip-pct">Tip for Staff (%)</label>
+        <input type="number" id="t2-tip-pct" value="10" min="0" max="100" step="1" oninput="onAnyInput()">
+      </div>
+      <div>
+        <label class="no-top" for="t2-tip-amt">Tip Amount ($)</label>
+        <input type="number" id="t2-tip-amt" placeholder="0.00" readonly>
+      </div>
+    </div>
     <div class="check-row" onclick="toggleCheck('t1-covered')">
       <input type="checkbox" id="t1-covered" checked onclick="event.stopPropagation(); onAnyInput()">
       <div>
@@ -482,22 +492,6 @@ input[readonly] {
         <p class="ro-note" id="t2-table-bill-note" style="display:none;">↑ from Tab 1</p>
       </div>
     </div>
-    <label for="t2-bill-payer" style="margin-top:10px;">Who covered the table's bill?</label>
-    <select id="t2-bill-payer" onchange="onSharedChange()">
-      <option value="">Nobody — everyone paid their own</option>
-    </select>
-    <div class="shared-grid" style="margin-top:10px;">
-      <div>
-        <label class="no-top" for="t2-tip-pct">Tip for Staff (%)</label>
-        <input type="number" id="t2-tip-pct" value="10" min="0" max="100" step="1"
-               oninput="onSharedChange()">
-      </div>
-      <div>
-        <label class="no-top" for="t2-tip-amt">Tip Amount ($)</label>
-        <input type="number" id="t2-tip-amt" placeholder="0.00" readonly>
-      </div>
-    </div>
-    <p class="section-note">Bill payer only owes their own dishes — the rest is reimbursed via settlement.</p>
   </div>
 
   <!-- Night summary -->
@@ -732,6 +726,12 @@ function calculateTab1() {
   const buyInOn     = gc('t1-buyin-toggle');
   const buyIn       = buyInOn ? gv('t1-buyin') : 0;
   const costPerChip = chipsBought > 0 ? myChipsCost / chipsBought : 0;
+  const tipPct      = gv('t2-tip-pct');
+  const tipShare    = myDishes * tipPct / 100;
+  const tipTotal    = tableBill * tipPct / 100;
+
+  // Update tip amount display
+  $('t2-tip-amt').value = tipTotal > 0 ? tipTotal.toFixed(2) : '';
 
   const sec = $('result-section');
   if (!(chipsBought || myChipsCost || chipsEnd || myDishes || tableBill)) {
@@ -741,7 +741,7 @@ function calculateTab1() {
   sec.style.display = 'block';
 
   const { chipPnL, balance } = computeBalance({
-    chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn,
+    chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare, tipTotal,
   });
 
   // Formula display
@@ -756,19 +756,25 @@ function calculateTab1() {
 
   if (isBillPayer) {
     html += `
-    <div class="fexpr">Balance = chipPnL − myDishes − buyIn + tableBill</div>
-    <div class="fexpr">You covered the table — you're owed back the full bill.</div>
+    <div class="fexpr">Balance = chipPnL − myDishes − tipShare − buyIn + tableBill + tipTotal</div>
+    <div class="fexpr">You covered the table &amp; tips — you're owed back the full bill + tips.</div>
     <div class="fline"><span class="fname">My dishes</span>
       <span class="fval neg">−${fmt(myDishes)}</span></div>
+    ${tipShare > 0 ? `<div class="fline"><span class="fname">My tip share (${tipPct}%)</span>
+      <span class="fval neg">−${fmt(tipShare)}</span></div>` : ''}
     ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
       <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}
     <div class="fline"><span class="fname">Table bill (owed to me)</span>
-      <span class="fval pos">+${fmt(tableBill)}</span></div>`;
+      <span class="fval pos">+${fmt(tableBill)}</span></div>
+    ${tipTotal > 0 ? `<div class="fline"><span class="fname">Total tip (owed to me)</span>
+      <span class="fval pos">+${fmt(tipTotal)}</span></div>` : ''}`;
   } else {
     html += `
-    <div class="fexpr">Balance = chipPnL − myDishes − buyIn</div>
+    <div class="fexpr">Balance = chipPnL − myDishes − tipShare − buyIn</div>
     <div class="fline"><span class="fname">My dishes</span>
       <span class="fval neg">−${fmt(myDishes)}</span></div>
+    ${tipShare > 0 ? `<div class="fline"><span class="fname">My tip share (${tipPct}%)</span>
+      <span class="fval neg">−${fmt(tipShare)}</span></div>` : ''}
     ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
       <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}`;
   }
@@ -871,30 +877,17 @@ function onSharedChange() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  TAB 2: BILL-PAYER DROPDOWN
-//  Surgically rebuilds only the <option> elements.
+//  BILL PAYER
+//  The bill payer is always the session owner when they have
+//  "I covered the table's bill" checked in Tab 1. No dropdown.
 // ═══════════════════════════════════════════════════════════
 
-function refreshBillPayerDropdown() {
-  const bp   = $('t2-bill-payer');
-  const prev = bp.value;
-
-  while (bp.options.length > 1) bp.remove(1);
-
-  players.filter(p => p.name && p.name.trim()).forEach(p => {
-    bp.add(new Option(p.name.trim(), p.id));
-  });
-
-  bp.value = prev;
-  if (!bp.value) bp.selectedIndex = 0;
-
-  // Auto-select if Tab 1 has "covered bill" checked for this session
-  if (gc('t1-covered')) {
-    if (Array.from(bp.options).some(o => o.value === SESSION_ID)) {
-      bp.value = SESSION_ID;
-    }
-  }
+function getBillPayerId() {
+  return gc('t1-covered') ? SESSION_ID : '';
 }
+
+// no-op kept so all existing call sites remain valid
+function refreshBillPayerDropdown() {}
 
 // ═══════════════════════════════════════════════════════════
 //  TAB 2: PLAYER LIST
@@ -970,7 +963,7 @@ function refreshPlayerComputed(p) {
   const tableBill   = gv('t2-table-bill');
   const costPerChip = gv('t2-chips-cost');
   const tipPct      = gv('t2-tip-pct');
-  const billPayerId = $('t2-bill-payer').value;
+  const billPayerId = getBillPayerId();
   const isBP        = p.id === billPayerId;
 
   const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
@@ -1064,7 +1057,7 @@ function refreshSummary() {
   const tableBill   = gv('t2-table-bill');
   const costPerChip = gv('t2-chips-cost');
   const tipPct      = gv('t2-tip-pct');
-  const billPayerId = $('t2-bill-payer').value;
+  const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
 
   // Update tip amount display
@@ -1175,7 +1168,7 @@ function computeSettlement() {
   const tableBill   = gv('t2-table-bill');
   const costPerChip = gv('t2-chips-cost');
   const tipPct      = gv('t2-tip-pct');
-  const billPayerId = $('t2-bill-payer').value;
+  const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
 
   if (active.length < 2) {
@@ -1305,7 +1298,6 @@ function saveShared() {
   localStorage.setItem('pns_shared', JSON.stringify({
     chipsCost: $('t2-chips-cost').readOnly ? '' : $('t2-chips-cost').value,
     tableBill: $('t2-table-bill').readOnly ? '' : $('t2-table-bill').value,
-    billPayer: $('t2-bill-payer').value,
   }));
 }
 
@@ -1316,7 +1308,6 @@ function loadShared() {
     const s = JSON.parse(raw);
     if (s.chipsCost) $('t2-chips-cost').value = s.chipsCost;
     if (s.tableBill) $('t2-table-bill').value = s.tableBill;
-    if (s.billPayer) window._savedBillPayer   = s.billPayer;
   } catch (e) {}
 }
 
@@ -1373,9 +1364,6 @@ function buildShareURL(includeTab1, includeTab2) {
     if (cpc) p.set('cpc', cpc);
     if (t2b) p.set('t2b', t2b);
     if (tip) p.set('tip', tip);
-    const bp = $('t2-bill-payer');
-    const bpName = bp.value ? bp.options[bp.selectedIndex].text : '';
-    if (bpName && bpName !== 'Nobody — everyone paid their own') p.set('bp', bpName);
 
     // Encode all players (skip the locked/own player — their data is in Tab 1 params)
     const manualPlayers = players.filter(pl => !pl.locked && pl.name && pl.name.trim());
@@ -1564,8 +1552,6 @@ function applyURLParams() {
   if (urlTab) window._urlTab = urlTab;
 
   // Bill payer by name — resolved after dropdown is built, stored for later
-  const bp = p.get('bp');
-  if (bp) window._urlBillPayer = bp;
 }
 // ═══════════════════════════════════════════════════════════
 //  JUMP TO TAB 1
@@ -1701,18 +1687,6 @@ function attachEnterKey() {
 
   buildPlayerList();
   refreshSharedFields();
-  refreshBillPayerDropdown();
-
-  // Restore bill-payer: localStorage selection takes priority, then URL param by name
-  if (window._savedBillPayer) {
-    $('t2-bill-payer').value = window._savedBillPayer;
-    window._savedBillPayer   = null;
-  } else if (window._urlBillPayer) {
-    const bp = $('t2-bill-payer');
-    const match = Array.from(bp.options).find(o => o.text === window._urlBillPayer);
-    if (match) bp.value = match.value;
-    window._urlBillPayer = null;
-  }
 
   refreshPlayerComputedAll();
   refreshSummary();
