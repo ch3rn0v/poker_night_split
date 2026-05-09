@@ -490,6 +490,10 @@ input[readonly] {
       ⚠️ <span id="balance-warning-text">Balances don't sum to zero — someone's data may be missing.</span>
     </div>
 
+    <div id="dishes-warning" class="warning-banner" style="display:none;">
+      ⚠️ <span id="dishes-warning-text"></span>
+    </div>
+
     <!-- Chip count reconciliation -->
     <div style="margin-top:4px;" id="chip-recon-section">
       <div class="summary-grid">
@@ -1066,7 +1070,22 @@ function refreshSummary() {
     pnlChip.classList.remove('ok', 'mismatch');
     pnlWarn.style.display = 'none';
   }
-  // ── Chip count reconciliation ──
+
+  // ── Dishes vs table bill check ──
+  // The settlement is only correct when Σ myDishes (all players) = tableBill.
+  // If they don't match, the bill payer's Tab 1 figure won't equal the settlement total.
+  const totalDishesAll = active.reduce((s, p) => s + (p.myDishes || 0), 0);
+  const dishesDiff = Math.abs(totalDishesAll - tableBill);
+  const dishWarn = $('dishes-warning');
+  if (active.length >= 2 && tableBill > 0 && dishesDiff > 0.05) {
+    dishWarn.style.display = 'flex';
+    const dir = totalDishesAll < tableBill ? 'short by' : 'over by';
+    $('dishes-warning-text').textContent =
+      `Players' dishes total ${fmt(totalDishesAll)} but table bill is ${fmt(tableBill)} (${dir} ${fmt(dishesDiff)}). ` +
+      `Settlement will differ from Tab 1 until all dishes are entered.`;
+  } else {
+    dishWarn.style.display = 'none';
+  }
   let totalChipsBought = 0, totalChipsEnd = 0;
   active.forEach(p => {
     totalChipsBought += p.chipsBought || 0;
