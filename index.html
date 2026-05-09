@@ -287,6 +287,12 @@ input[readonly] {
   background: var(--felt-card); border: 1.5px solid var(--gold-dim);
   border-radius: 9px; padding: 11px 8px; text-align: center;
 }
+.summary-chip-svg {
+  background: var(--felt-card); border: 1.5px solid var(--gold-dim);
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  padding: 6px;
+}
+.summary-chip-svg svg { width: 100%; height: auto; max-height: 80px; display: block; }
 .summary-chip.full-width { grid-column: 1 / -1; }
 .sc-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .09em; color: var(--gold-dim); margin-bottom: 3px; }
 .sc-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); }
@@ -487,14 +493,30 @@ input[readonly] {
     <div class="card-title"><span class="suit">♠</span> Night Summary</div>
 
     <div class="summary-grid">
-      <div class="summary-chip" id="sc-net-chip">
-        <div class="sc-label">⚖️ Net Balance</div>
-        <div class="sc-value" id="sc-net-val">—</div>
+      <div class="summary-chip-svg">
+        <svg viewBox="0 0 160 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- felt texture circle -->
+          <circle cx="80" cy="45" r="42" fill="#0f2318" stroke="#7a6230" stroke-width="1.5"/>
+          <circle cx="80" cy="45" r="36" fill="none" stroke="#7a6230" stroke-width=".6" stroke-dasharray="4 3"/>
+          <!-- suits -->
+          <text x="80" y="30" text-anchor="middle" font-size="18" fill="#c9a84c" font-family="serif">♠</text>
+          <text x="56" y="52" text-anchor="middle" font-size="16" fill="#e05252" font-family="serif">♥</text>
+          <text x="104" y="52" text-anchor="middle" font-size="16" fill="#e05252" font-family="serif">♦</text>
+          <text x="80" y="68" text-anchor="middle" font-size="16" fill="#c9a84c" font-family="serif">♣</text>
+          <!-- outer ring ticks -->
+          <circle cx="80" cy="45" r="42" fill="none" stroke="#c9a84c" stroke-width="2.5"
+            stroke-dasharray="2 10.5" stroke-dashoffset="0"/>
+        </svg>
       </div>
-      <div class="summary-chip">
+      <div class="summary-chip" id="sc-chip-pnl-chip">
         <div class="sc-label">💰 Total Chip P&amp;L</div>
         <div class="sc-value" id="sc-chip-pnl-val">—</div>
+        <div class="sc-sub" id="sc-chip-pnl-sub"></div>
       </div>
+    </div>
+
+    <div id="chip-pnl-warning" class="warning-banner" style="display:none;margin-top:6px;">
+      ⚠️ <span>Total Chip P&amp;L should be $0.00 — chips are zero-sum. Check everyone's chip counts.</span>
     </div>
 
     <div id="balance-warning" class="warning-banner" style="display:none;">
@@ -1062,8 +1084,20 @@ function refreshSummary() {
   });
 
   $('sc-chip-pnl-val').textContent = active.length ? fmtS(totalPnL) : '—';
-  $('sc-net-val').textContent      = active.length ? fmtN(netBal)   : '—';
 
+  // Chip P&L should always be $0 — chips are zero-sum
+  const pnlChip = $('sc-chip-pnl-chip');
+  const pnlWarn = $('chip-pnl-warning');
+  if (active.length >= 2 && Math.abs(totalPnL) > 0.01) {
+    pnlChip.classList.add('mismatch'); pnlChip.classList.remove('ok');
+    pnlWarn.style.display = 'flex';
+  } else if (active.length >= 2) {
+    pnlChip.classList.add('ok'); pnlChip.classList.remove('mismatch');
+    pnlWarn.style.display = 'none';
+  } else {
+    pnlChip.classList.remove('ok', 'mismatch');
+    pnlWarn.style.display = 'none';
+  }
   // ── Chip count reconciliation ──
   let totalChipsBought = 0, totalChipsEnd = 0;
   active.forEach(p => {
@@ -1317,7 +1351,6 @@ function buildShareURL(includeTab1, includeTab2) {
         if (v) p.set(key, v);
       }
     });
-    // Dishes: only non-empty values
     const dishes = Array.from(document.querySelectorAll('.dish-input'))
       .map(el => el.value.trim()).filter(Boolean);
     dishes.forEach((v, i) => p.set(`d${i}`, v));
@@ -1329,14 +1362,28 @@ function buildShareURL(includeTab1, includeTab2) {
     const tip = $('t2-tip-pct').value.trim();
     if (cpc) p.set('cpc', cpc);
     if (t2b) p.set('t2b', t2b);
-    if (tip && tip !== '10') p.set('tip', tip); // only encode if not default
+    if (tip && tip !== '10') p.set('tip', tip);
     const bp = $('t2-bill-payer');
     const bpName = bp.value ? bp.options[bp.selectedIndex].text : '';
     if (bpName && bpName !== 'Nobody — everyone paid their own') p.set('bp', bpName);
+
+    // Encode all players (skip the locked/own player — their data is in Tab 1 params)
+    const manualPlayers = players.filter(pl => !pl.locked && pl.name && pl.name.trim());
+    manualPlayers.forEach((pl, i) => {
+      p.set(`p${i}_n`,  pl.name);
+      if (pl.chipsBought) p.set(`p${i}_cb`, pl.chipsBought);
+      if (pl.chipsEnd)    p.set(`p${i}_ce`, pl.chipsEnd);
+      if (pl.myDishes)    p.set(`p${i}_md`, pl.myDishes);
+      if (pl.buyIn)       p.set(`p${i}_bi`, pl.buyIn);
+    });
+    if (manualPlayers.length) p.set('pc', manualPlayers.length);
+
+    // Encode settlement state — 1 if results are currently shown
+    const settlementHasResults = $('settlement-output').querySelector('.settlement-list, .all-clear');
+    if (settlementHasResults) p.set('settled', '1');
   }
 
-  const url = location.href.split('?')[0] + '?' + p.toString();
-  return url;
+  return location.href.split('?')[0] + '?' + p.toString();
 }
 
 function doShare(url, title) {
@@ -1422,6 +1469,28 @@ function applyURLParams() {
 
   const tip = p.get('tip');
   if (tip && !$('t2-tip-pct').value) $('t2-tip-pct').value = tip;
+
+  // Restore manual players — only if there are none already (localStorage wins)
+  const manualCount = parseInt(p.get('pc') || '0', 10);
+  const existingManual = players.filter(pl => !pl.locked);
+  if (manualCount > 0 && existingManual.length === 0) {
+    for (let i = 0; i < manualCount; i++) {
+      const name = p.get(`p${i}_n`);
+      if (!name) continue;
+      players.push({
+        id:          'url_' + i + '_' + Date.now(),
+        name,
+        locked:      false,
+        chipsBought: parseFloat(p.get(`p${i}_cb`) || '0') || 0,
+        chipsEnd:    parseFloat(p.get(`p${i}_ce`) || '0') || 0,
+        myDishes:    parseFloat(p.get(`p${i}_md`) || '0') || 0,
+        buyIn:       parseFloat(p.get(`p${i}_bi`) || '0') || 0,
+      });
+    }
+  }
+
+  // Auto-compute settlement if it was shown when shared
+  if (p.get('settled') === '1') window._autoSettle = true;
 
   // Bill payer by name — resolved after dropdown is built, stored for later
   const bp = p.get('bp');
@@ -1578,6 +1647,12 @@ function attachEnterKey() {
   refreshSummary();
   attachEnterKey();
   attachRipples();
+
+  // Auto-compute settlement if the shared link had it active
+  if (window._autoSettle) {
+    window._autoSettle = false;
+    computeSettlement();
+  }
 })();
 </script>
 </body>
