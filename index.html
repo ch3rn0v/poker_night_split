@@ -921,7 +921,15 @@ function buildPlayerList() {
   });
 }
 
-// Always derive tableBill and tipTotal from Tab 1 source fields directly.
+// Always derive costPerChip with full floating-point precision from Tab 1 source fields.
+// t2-chips-cost is a rounded display field only — never use it for computation.
+function getCostPerChip() {
+  const t1cost   = parseFloat($('t1-chips-cost').value)   || 0;
+  const t1bought = parseFloat($('t1-chips-bought').value) || 0;
+  if (t1cost > 0 && t1bought > 0) return t1cost / t1bought;
+  // Fallback: manual entry in Tab 2 (no Tab 1 data)
+  return gv('t2-chips-cost');
+}
 // The t2-table-bill display field is never used in computation.
 function getTab2BillFigures() {
   const tableBill = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
@@ -935,7 +943,7 @@ function refreshPlayerComputed(p) {
   if (!el) return;
 
   const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
-  const costPerChip = gv('t2-chips-cost');
+  const costPerChip = getCostPerChip();
   const billPayerId = getBillPayerId();
   const isBP        = p.id === billPayerId;
 
@@ -1026,7 +1034,7 @@ function removePlayer(id) {
 
 function refreshSummary() {
   const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
-  const costPerChip = gv('t2-chips-cost');
+  const costPerChip = getCostPerChip();
   const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
 
@@ -1129,7 +1137,7 @@ function refreshSummary() {
 function computeSettlement() {
   const out         = $('settlement-output');
   const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
-  const costPerChip = gv('t2-chips-cost');
+  const costPerChip = getCostPerChip();
   const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
 
