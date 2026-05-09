@@ -1093,7 +1093,7 @@ function refreshSummary() {
   if (hasPnlMismatch || hasCountMismatch) {
     chipWarn.style.display = 'flex';
     let msg = `Total Chip P&L should be $0.00 — chips are zero-sum.`;
-    if (hasCountMismatch) msg += ` Chip counts differ by ${Math.abs(chipDiff)} chips (in: ${totalChipsBought}, out: ${totalChipsEnd}).`;
+    if (hasCountMismatch) msg += ` Chip counts differ by ${Math.abs(chipDiff)} chips.`;
     $('chip-count-warning-text').textContent = msg;
     scStart.classList.add('mismatch'); scEnd.classList.add('mismatch');
     scStart.classList.remove('ok');    scEnd.classList.remove('ok');
