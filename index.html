@@ -276,6 +276,8 @@ input[readonly] {
 
 /* ── TAB 2: SHARED GRID ────────────────────────────────── */
 .shared-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.shared-grid > div { display: flex; flex-direction: column; }
+.shared-grid > div input { margin-top: auto; }
 
 /* ── TAB 2: SUMMARY CHIPS ──────────────────────────────── */
 .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
@@ -401,7 +403,7 @@ input[readonly] {
         <button class="btn-icon" onclick="addDish()">+</button>
       </div>
     </div>
-    <label for="t1-total-bill">Total Table Bill ($)</label>
+    <label for="t1-total-bill">Table Bill ($)</label>
     <input type="number" id="t1-total-bill" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
     <div class="shared-grid" style="margin-top:10px;">
       <div>
@@ -457,14 +459,16 @@ input[readonly] {
       <div>
         <label class="no-top" for="t2-chips-cost">Cost Per Chip ($)</label>
         <input type="number" id="t2-chips-cost" placeholder="0.00" min="0" step="0.001"
-               oninput="onSharedChange()">
-        <p class="ro-note" id="t2-chips-cost-note" style="display:none;">↑ from Tab 1</p>
+               readonly oninput="onSharedChange()">
+        <p class="ro-note" id="t2-chips-cost-note">From Tab 1</p>
       </div>
       <div>
-        <label class="no-top" for="t2-table-bill">Table Bill ($)</label>
+        <label class="no-top" for="t2-table-bill">Total Table Bill ($)
+          <span class="label-note">— incl. tip</span>
+        </label>
         <input type="number" id="t2-table-bill" placeholder="0.00" min="0" step="0.01"
-               oninput="onSharedChange()">
-        <p class="ro-note" id="t2-table-bill-note" style="display:none;">↑ from Tab 1</p>
+               readonly oninput="onSharedChange()">
+        <p class="ro-note" id="t2-table-bill-note">From Tab 1</p>
       </div>
     </div>
   </div>
@@ -806,36 +810,21 @@ function syncMyRowToPlayers() {
 // ═══════════════════════════════════════════════════════════
 
 function refreshSharedFields() {
-  // Cost per chip = myChipsCost ÷ chipsBought (both from Tab 1)
-  const t1cost     = parseFloat($('t1-chips-cost').value)   || 0;
-  const t1bought   = parseFloat($('t1-chips-bought').value) || 0;
+  // Cost per chip — derived from Tab 1, set value when available
+  const t1cost      = parseFloat($('t1-chips-cost').value)   || 0;
+  const t1bought    = parseFloat($('t1-chips-bought').value) || 0;
   const costPerChip = (t1cost > 0 && t1bought > 0) ? t1cost / t1bought : 0;
-
-  const costEl   = $('t2-chips-cost');
-  const costNote = $('t2-chips-cost-note');
   if (costPerChip > 0) {
-    costEl.value    = costPerChip.toFixed(4).replace(/\.?0+$/, '');
-    costEl.readOnly = true;
-    costNote.style.display = 'block';
+    $('t2-chips-cost').value = costPerChip.toFixed(4).replace(/\.?0+$/, '');
   } else {
-    costEl.readOnly = false;
-    costNote.style.display = 'none';
+    $('t2-chips-cost').value = '';
   }
 
+  // Total table bill (incl. tip) — derived from Tab 1
   const t1bill   = parseFloat($('t1-total-bill').value) || 0;
   const tipPctSF = parseFloat($('t2-tip-pct').value)    || 0;
   const combined = t1bill > 0 ? t1bill * (1 + tipPctSF / 100) : 0;
-  const billEl   = $('t2-table-bill');
-  const billNote = $('t2-table-bill-note');
-  if (t1bill > 0) {
-    billEl.value    = t1bill.toFixed(2);
-    billEl.readOnly = true;
-    billNote.textContent = `↑ from Tab 1${tipPctSF > 0 ? ` · incl. tip: $${combined.toFixed(2)}` : ''}`;
-    billNote.style.display = 'block';
-  } else {
-    billEl.readOnly = false;
-    billNote.style.display = 'none';
-  }
+  $('t2-table-bill').value = combined > 0 ? combined.toFixed(2) : '';
 }
 
 function onSharedChange() {
@@ -929,13 +918,17 @@ function getCostPerChip() {
   // Fallback: manual entry in Tab 2 (no Tab 1 data)
   return gv('t2-chips-cost');
 }
-// t2-table-bill always stores the pre-tip bill (raw).
-// When derived from Tab 1 it is set to t1-total-bill directly.
-// When manually entered, the user enters the pre-tip bill.
-// Tip is always computed separately as tableBill * tipPct / 100.
+// t2-table-bill stores the post-tip total (tableBill × (1 + tipPct/100)).
+// Whether auto-filled from Tab 1 or manually entered, the user sees and enters
+// the combined total. We back-calculate the raw bill here.
 function getTab2BillFigures() {
-  const tableBill = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
+  const combined  = parseFloat($('t1-total-bill').value) || gv('t2-table-bill');
+  // If coming from Tab 1 we have the raw bill directly — no need to divide
+  const t1bill    = parseFloat($('t1-total-bill').value) || 0;
   const tipPct    = gv('t2-tip-pct');
+  const tableBill = t1bill > 0
+    ? t1bill
+    : (tipPct > 0 ? combined / (1 + tipPct / 100) : combined);
   const tipTotal  = tableBill * tipPct / 100;
   return { tableBill, tipTotal, tipPct };
 }
@@ -1269,8 +1262,8 @@ function loadPlayers() {
 
 function saveShared() {
   localStorage.setItem('pns_shared', JSON.stringify({
-    chipsCost: $('t2-chips-cost').readOnly ? '' : $('t2-chips-cost').value,
-    tableBill: $('t2-table-bill').readOnly ? '' : $('t2-table-bill').value,
+    chipsCost: $('t2-chips-cost').value,
+    tableBill: $('t2-table-bill').value,
   }));
 }
 
@@ -1396,14 +1389,10 @@ function clearAll() {
 
   // ── Tab 2 ──
   players = [];
-  $('t2-chips-cost').value    = '';
-  $('t2-chips-cost').readOnly = false;
-  $('t2-chips-cost-note').style.display = 'none';
-  $('t2-table-bill').value    = '';
-  $('t2-table-bill').readOnly = false;
-  $('t2-table-bill-note').style.display = 'none';
-  $('t2-tip-pct').value       = '10';
-  $('t2-tip-amt').value       = '';
+  $('t2-chips-cost').value = '';
+  $('t2-table-bill').value = '';
+  $('t2-tip-pct').value    = '10';
+  $('t2-tip-amt').value    = '';
   $('settlement-output').innerHTML = '<div class="empty-state">Add players and hit Compute.</div>';
 
   // ── Persist & refresh ──
@@ -1472,16 +1461,6 @@ function applyURLParams() {
         list.appendChild(row);
       });
     }
-  }
-
-  // Tab 2 shared fields — only fill if empty and not read-only (derived from Tab 1)
-  const cpc = p.get('cpc');
-  if (cpc && !$('t2-chips-cost').value.trim() && !$('t2-chips-cost').readOnly) {
-    $('t2-chips-cost').value = cpc;
-  }
-  const t2b = p.get('t2b');
-  if (t2b && !$('t2-table-bill').value.trim() && !$('t2-table-bill').readOnly) {
-    $('t2-table-bill').value = t2b;
   }
 
   const tip = p.get('tip');
