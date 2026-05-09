@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050e08">
+<title>Poker Night Split</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Courier+Prime:wght@400;700&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+/* ── DESIGN TOKENS ─────────────────────────────────────── */
+:root {
+  --felt:        #050e08;
+  --felt-mid:    #0f2318;
+  --felt-card:   #142b1a;
+  --gold:        #c9a84c;
+  --gold-dim:    #7a6230;
+  --card-bg:     #f5f0e8;
+  --card-border: #c8b46a;
+  --ink:         #1a1a1a;
+  --ink-mid:     #3a3a3a;
+  --ink-light:   #6a6a6a;
+  --green:       #3dab6a;
+  --green-dark:  #1e7a46;
+  --red:         #d94f4f;
+  --amber:       #e09a30;
+  --locked-bg:   #ece7d8;
+}
+
+/* ── RESET ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── iOS OVERSCROLL BACKGROUND FIX ─────────────────────
+   Use background-color (not shorthand) on html so it doesn't
+   accidentally reset background-image on body.               */
+html {
+  background-color: #050e08;
+  min-height: 100%;
+}
+
+body {
+  background-color: #050e08;
+  background-image:
+    radial-gradient(ellipse at 25% 15%, #0f2318 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 85%, #0a1a10 0%, transparent 55%),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0, transparent 10px,
+      rgba(255,255,255,.007) 10px, rgba(255,255,255,.007) 11px
+    );
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  font-family: 'Courier Prime', monospace;
+  color: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── HEADER ────────────────────────────────────────────── */
+header {
+  width: 100%; max-width: 480px;
+  text-align: center;
+  padding: 24px 20px 8px;
+}
+.suit-row { font-size: 1rem; letter-spacing: .35em; color: var(--gold-dim); margin-bottom: 5px; }
+header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem; font-weight: 700; color: var(--gold);
+  text-shadow: 0 2px 16px rgba(201,168,76,.3);
+  letter-spacing: .05em; line-height: 1.15;
+}
+
+/* ── BOTTOM TAB BAR ────────────────────────────────────── */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  display: flex; justify-content: center;
+  background-color: #050e08;
+  border-top: 2px solid var(--gold-dim);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tab-bar-inner { display: flex; width: 100%; max-width: 480px; }
+.tab-btn {
+  flex: 1; background: transparent; border: none;
+  color: var(--gold-dim);
+  font-family: 'IM Fell English SC', serif;
+  font-size: .95rem; letter-spacing: .06em;
+  padding: 14px 6px 12px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  border-top: 3px solid transparent; margin-top: -2px;
+}
+.tab-btn.active { color: var(--gold); border-top-color: var(--gold); }
+.tab-btn:active  { opacity: .6; }
+
+/* ── TAB PANELS ────────────────────────────────────────── */
+.tab-panel { display: none; width: 100%; max-width: 480px; padding: 0 12px; }
+.tab-panel.active { display: block; }
+
+/* ── CARD ───────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border); border-radius: 12px;
+  box-shadow: 0 6px 28px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.04) inset;
+  padding: 18px 16px; margin-top: 12px; color: var(--ink);
+}
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: .95rem; font-weight: 600; color: var(--ink-mid);
+  margin-bottom: 12px; padding-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid #d8d0be;
+}
+.card-title .suit { color: var(--gold); font-size: 1rem; }
+
+/* ── LABELS ────────────────────────────────────────────── */
+label {
+  display: block; font-size: .67rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-light); margin-bottom: 3px; margin-top: 10px;
+}
+label.no-top { margin-top: 0; }
+.label-note {
+  font-size: .6rem; font-weight: 400; font-style: italic;
+  text-transform: none; letter-spacing: 0; color: var(--ink-light);
+}
+
+/* ── INPUTS & SELECT ───────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+select {
+  width: 100%; background: #fff;
+  border: 1.5px solid #ccc5b0; border-radius: 7px;
+  padding: 10px 11px;
+  font-family: 'Courier Prime', monospace;
+  font-size: 16px; color: var(--ink);
+  -webkit-appearance: none; appearance: none; outline: none;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus { border-color: var(--gold); }
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a6a6a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+input[readonly] {
+  background: var(--locked-bg); color: var(--ink-light);
+  cursor: not-allowed; border-color: #ddd6c2;
+}
+.ro-note { font-size: .62rem; color: var(--ink-light); font-style: italic; margin-top: 3px; }
+
+/* ── DISH ROWS ─────────────────────────────────────────── */
+.dish-row { display: flex; gap: 7px; align-items: center; margin-bottom: 5px; }
+.dish-row input { flex: 1; margin: 0; }
+.btn-icon {
+  width: 36px; height: 36px; flex-shrink: 0;
+  border-radius: 7px; border: 1.5px solid var(--gold-dim);
+  background: var(--felt-mid); color: var(--gold);
+  font-size: 1.3rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn-icon:active { background: var(--gold); color: var(--felt-mid); }
+
+/* ── CHECKBOX ROW ──────────────────────────────────────── */
+.check-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 10px 12px;
+  background: #eee8d4; border-radius: 8px; border: 1px solid #d8cba8;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.check-row:active { background: #e4dcc4; }
+.check-row input[type="checkbox"] {
+  width: 20px; height: 20px; accent-color: var(--gold);
+  cursor: pointer; flex-shrink: 0; margin: 0;
+}
+.check-label { font-size: .8rem; font-weight: 700; color: var(--ink-mid); line-height: 1.3; }
+.check-sub   { font-size: .68rem; color: var(--ink-light); margin-top: 1px; }
+
+/* ── TOGGLE (buy-in) ───────────────────────────────────── */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.toggle-label { font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-light); }
+.toggle { position: relative; width: 44px; height: 26px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: #ccc5b0; border-radius: 13px; transition: background .2s; }
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 20px; height: 20px; background: #fff; border-radius: 50%;
+  top: 3px; left: 3px; transition: transform .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+.toggle input:checked + .toggle-slider { background: var(--gold); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+/* ── SHARE BUTTON ───────────────────────────────────────── */
+.btn-share {
+  width: 100%; margin-top: 14px; padding: 13px;
+  background: transparent; border: 2px solid var(--gold-dim); border-radius: 9px;
+  color: var(--card-bg); font-family: 'IM Fell English SC', serif;
+  font-size: 1rem; letter-spacing: .1em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  position: relative; overflow: hidden;
+}
+
+/* ── TOAST ──────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: #1e4a2e; border: 1.5px solid var(--gold-dim);
+  color: var(--card-bg); font-family: 'Courier Prime', monospace;
+  font-size: .82rem; padding: 10px 20px; border-radius: 20px;
+  white-space: nowrap; z-index: 999;
+  opacity: 0; transition: opacity .2s;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* ── PRIMARY BUTTON ────────────────────────────────────── */
+.btn-primary {
+  width: 100%; margin-top: 14px; padding: 13px;
+  background: var(--felt-mid); border: 2px solid var(--gold); border-radius: 9px;
+  color: var(--gold); font-family: 'IM Fell English SC', serif;
+  font-size: 1rem; letter-spacing: .1em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  position: relative; overflow: hidden;
+}
+
+/* ── RIPPLE ─────────────────────────────────────────────── */
+@keyframes ripple-expand {
+  0%   { transform: scale(0);   opacity: .55; }
+  60%  { transform: scale(1);   opacity: .35; }
+  100% { transform: scale(1);   opacity: 0;   }
+}
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 10px; height: 10px;
+  margin-top: -5px; margin-left: -5px;
+  pointer-events: none;
+  animation: ripple-expand .55s ease-out forwards;
+}
+.btn-primary .ripple {
+  background: radial-gradient(circle, rgba(201,168,76,.9) 0%, rgba(201,168,76,0) 70%);
+  width: 10px; height: 10px;
+}
+.btn-share .ripple {
+  background: radial-gradient(circle, rgba(201,168,76,.5) 0%, rgba(201,168,76,0) 70%);
+}
+
+/* ── FORMULA BOX ───────────────────────────────────────── */
+.formula-box {
+  background: #ede7d4; border: 1px solid #cdc5ae; border-radius: 8px;
+  padding: 13px; margin-top: 12px;
+  font-size: .76rem; color: var(--ink-mid); line-height: 1.8;
+}
+.fexpr   { font-size: .67rem; color: var(--ink-light); font-style: italic; margin-bottom: 2px; }
+.fline   { display: flex; justify-content: space-between; gap: 8px; }
+.fname   { color: var(--ink-light); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; flex-shrink: 0; }
+.fval    { font-weight: 700; text-align: right; }
+.fval.pos { color: var(--green-dark); }
+.fval.neg { color: var(--red); }
+.fdivider { border: none; border-top: 1px dashed #cdc5ae; margin: 5px 0; }
+
+/* ── RESULT BANNER ─────────────────────────────────────── */
+.result-banner { border-radius: 9px; padding: 15px; margin-top: 12px; text-align: center; }
+.result-banner.win  { background: #d4f0e1; border: 2px solid var(--green); }
+.result-banner.loss { background: #f5dada; border: 2px solid var(--red); }
+.result-banner.zero { background: #e8e0cc; border: 2px solid var(--gold-dim); }
+.result-label  { font-size: .68rem; text-transform: uppercase; letter-spacing: .14em; opacity: .65; margin-bottom: 3px; }
+.result-amount { font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 700; }
+.result-banner.win  .result-amount { color: var(--green-dark); }
+.result-banner.loss .result-amount { color: var(--red); }
+.result-banner.zero .result-amount { color: var(--ink-mid); }
+.result-sub { font-size: .73rem; margin-top: 3px; opacity: .7; }
+
+/* ── TAB 2: SHARED GRID ────────────────────────────────── */
+.shared-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── TAB 2: SUMMARY CHIPS ──────────────────────────────── */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.summary-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.summary-chip {
+  background: var(--felt-card); border: 1.5px solid var(--gold-dim);
+  border-radius: 9px; padding: 11px 8px; text-align: center;
+}
+.summary-chip.full-width { grid-column: 1 / -1; }
+.sc-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .09em; color: var(--gold-dim); margin-bottom: 3px; }
+.sc-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); }
+.summary-chip.warn .sc-value { color: var(--amber); }
+.summary-chip.ok   .sc-value { color: var(--green); }
+.summary-chip.mismatch .sc-value { color: var(--red); }
+.sc-sub { font-size: .58rem; color: var(--gold-dim); margin-top: 2px; }
+
+/* ── TAB 2: PLAYER ROWS ────────────────────────────────── */
+.player-row {
+  background: #fff; border: 1.5px solid #ccc5b0;
+  border-radius: 9px; padding: 12px 13px; margin-bottom: 10px;
+}
+.player-row.locked-row { background: var(--locked-bg); border-color: var(--gold-dim); }
+.player-row-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px; gap: 8px;
+}
+.player-name-input {
+  font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 600;
+  border: none; background: transparent; color: var(--ink);
+  flex: 1; min-width: 0;
+  padding: 2px 0 3px; border-bottom: 1px dashed #ccc5b0; outline: none;
+}
+.player-name-display {
+  font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 600;
+  color: var(--ink); flex: 1; min-width: 0;
+  cursor: default;
+}
+.player-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.pfield label { font-size: .61rem; margin: 0 0 2px; }
+.pfield input { font-size: .88rem; padding: 7px 8px; }
+/* Locked (my) inputs in Tab 2 — pointer to signal tappability */
+.locked-row input[readonly] { cursor: pointer; }
+.player-computed {
+  margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ccc5b0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;
+}
+.pc-item { text-align: center; }
+.pc-label { font-size: .6rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-light); }
+.pc-val   { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 600; }
+.pc-val.pos { color: var(--green-dark); }
+.pc-val.neg { color: var(--red); }
+.btn-remove {
+  padding: 0 14px;
+  align-self: stretch;
+  border-radius: 7px;
+  border: 1.5px solid #e0bebe; background: #fce8e8; color: var(--red);
+  font-family: 'Courier Prime', monospace; font-size: .8rem; font-weight: 700;
+  letter-spacing: .04em;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+  margin-left: 8px;
+  position: relative; overflow: hidden;
+}
+.btn-remove .ripple {
+  background: radial-gradient(circle, rgba(217,79,79,.5) 0%, rgba(217,79,79,0) 70%);
+}
+
+/* ── SETTLEMENT ────────────────────────────────────────── */
+.settlement-list { list-style: none; }
+.settlement-item {
+  background: #fff; border: 1.5px solid #ccc5b0; border-radius: 9px;
+  padding: 12px 13px; margin-bottom: 7px;
+  display: flex; align-items: center; gap: 8px; font-size: .88rem;
+}
+.settlement-item .arrow  { color: var(--ink-light); font-size: .9rem; flex-shrink: 0; }
+.settlement-item .payer  { font-weight: 700; color: var(--red); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settlement-item .payee  { font-weight: 700; color: var(--green-dark); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settlement-item .amount { font-weight: 700; margin-left: auto; flex-shrink: 0; color: var(--ink); }
+
+/* ── MISC ──────────────────────────────────────────────── */
+.all-clear { text-align: center; padding: 20px; color: var(--green); font-family: 'Playfair Display', serif; font-size: 1rem; }
+.warning-banner {
+  background: #fef3dc; border: 1.5px solid var(--amber); border-radius: 8px;
+  padding: 9px 13px; font-size: .75rem; color: #7a5000;
+  margin-bottom: 10px; display: flex; gap: 7px; align-items: flex-start;
+}
+.empty-state { text-align: center; padding: 20px 12px; color: var(--ink-light); font-size: .82rem; line-height: 1.6; font-style: italic; }
+.section-note { font-size: .68rem; color: var(--ink-light); font-style: italic; margin-top: 6px; line-height: 1.4; }
+.deck-footer  { margin-top: 10px; text-align: center; font-size: 1.2rem; letter-spacing: .4em; color: var(--gold-dim); opacity: .4; }
+</style>
+</head>
+<body style="background-color:#050e08 !important;">
+<!-- Dark backdrop: paints inside the document so iframe injection can't override it -->
+<div style="position:fixed;inset:0;z-index:-1;background:linear-gradient(to bottom, #0f2318 0%, #050e08 65%);pointer-events:none;"></div>
+<div id="toast"></div>
+
+<header>
+  <div class="suit-row">♠ ♥ ♦ ♣</div>
+  <h1>Poker Night Split</h1>
+</header>
+
+<!-- ══════════════════════════ TAB 1 ══════════════════════════ -->
+<section class="tab-panel active" id="tab1">
+
+  <div class="card">
+    <div class="card-title"><span class="suit">♦</span> Your Identity</div>
+    <label class="no-top" for="t1-name">Your Name</label>
+    <input type="text" id="t1-name" placeholder="e.g. Alice" oninput="onAnyInput()">
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="suit">♥</span> Food &amp; Drinks</div>
+    <label class="no-top">My Dish Cost(s)</label>
+    <div id="dish-list">
+      <div class="dish-row">
+        <input type="number" class="dish-input" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+        <button class="btn-icon" onclick="addDish()">+</button>
+      </div>
+    </div>
+    <label for="t1-total-bill">Total Table Bill ($)</label>
+    <input type="number" id="t1-total-bill" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+    <div class="check-row" onclick="toggleCheck('t1-covered')">
+      <input type="checkbox" id="t1-covered" onclick="event.stopPropagation(); onAnyInput()">
+      <div>
+        <div class="check-label">I covered the table's bill</div>
+        <div class="check-sub">You paid for everyone — others will owe you back</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="suit">♠</span> Chips</div>
+    <label class="no-top" for="t1-chips-cost">My Chips Cost ($)
+      <span class="label-note">— total you paid for your chips</span>
+    </label>
+    <input type="number" id="t1-chips-cost" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+    <label for="t1-chips-bought">My Chips Bought (count)</label>
+    <input type="number" id="t1-chips-bought" placeholder="e.g. 100" min="0" step="1" oninput="onAnyInput()">
+    <label for="t1-chips-end">My Final Chip Count</label>
+    <input type="number" id="t1-chips-end" placeholder="e.g. 85" min="0" step="1" oninput="onAnyInput()">
+    <div class="toggle-row">
+      <span class="toggle-label">Optional Buy-in?</span>
+      <label class="toggle">
+        <input type="checkbox" id="t1-buyin-toggle" onchange="toggleBuyin()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div id="buyin-amount-wrap" style="display:none;">
+      <label for="t1-buyin">Buy-in Amount ($)</label>
+      <input type="number" id="t1-buyin" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+    </div>
+  </div>
+
+  <div id="result-section" class="card" style="display:none;">
+    <div class="card-title"><span class="suit">♣</span> Your Balance</div>
+    <div class="formula-box" id="formula-box"></div>
+    <div class="result-banner" id="result-banner">
+      <div class="result-label"  id="result-label"></div>
+      <div class="result-amount" id="result-amount"></div>
+      <div class="result-sub"    id="result-sub"></div>
+    </div>
+  </div>
+
+  <button class="btn-share" onclick="share()">♠ Share Setup</button>
+  <div class="deck-footer">— ♠ ♥ ♦ ♣ —</div>
+</section>
+<section class="tab-panel" id="tab2">
+
+  <!-- Shared values -->
+  <div class="card">
+    <div class="card-title"><span class="suit">♦</span> Shared Values</div>
+    <div class="shared-grid">
+      <div>
+        <label class="no-top" for="t2-chips-cost">Cost Per Chip ($)</label>
+        <input type="number" id="t2-chips-cost" placeholder="0.00" min="0" step="0.001"
+               oninput="onSharedChange()">
+        <p class="ro-note" id="t2-chips-cost-note" style="display:none;">↑ from Tab 1</p>
+      </div>
+      <div>
+        <label class="no-top" for="t2-table-bill">Table Bill ($)</label>
+        <input type="number" id="t2-table-bill" placeholder="0.00" min="0" step="0.01"
+               oninput="onSharedChange()">
+        <p class="ro-note" id="t2-table-bill-note" style="display:none;">↑ from Tab 1</p>
+      </div>
+    </div>
+    <label for="t2-bill-payer" style="margin-top:10px;">Who covered the table's bill?</label>
+    <select id="t2-bill-payer" onchange="onSharedChange()">
+      <option value="">Nobody — everyone paid their own</option>
+    </select>
+    <div class="shared-grid" style="margin-top:10px;">
+      <div>
+        <label class="no-top" for="t2-tip-pct">Tip for Staff (%)</label>
+        <input type="number" id="t2-tip-pct" value="10" min="0" max="100" step="1"
+               oninput="onSharedChange()">
+      </div>
+      <div>
+        <label class="no-top" for="t2-tip-amt">Tip Amount ($)</label>
+        <input type="number" id="t2-tip-amt" placeholder="0.00" readonly>
+      </div>
+    </div>
+    <p class="section-note">Bill payer only owes their own dishes — the rest is reimbursed via settlement.</p>
+  </div>
+
+  <!-- Night summary -->
+  <div class="card">
+    <div class="card-title"><span class="suit">♠</span> Night Summary</div>
+
+    <div class="summary-grid">
+      <div class="summary-chip" id="sc-net-chip">
+        <div class="sc-label">⚖️ Net Balance</div>
+        <div class="sc-value" id="sc-net-val">—</div>
+      </div>
+      <div class="summary-chip">
+        <div class="sc-label">💰 Total Chip P&amp;L</div>
+        <div class="sc-value" id="sc-chip-pnl-val">—</div>
+      </div>
+    </div>
+
+    <div id="balance-warning" class="warning-banner" style="display:none;">
+      ⚠️ <span id="balance-warning-text">Balances don't sum to zero — someone's data may be missing.</span>
+    </div>
+
+    <!-- Chip count reconciliation -->
+    <div style="margin-top:4px;" id="chip-recon-section">
+      <div class="summary-grid">
+        <div class="summary-chip" id="sc-chips-start">
+          <div class="sc-label">Chips In</div>
+          <div class="sc-value" id="sc-chips-start-val">—</div>
+          <div class="sc-sub">bought + buy-ins</div>
+        </div>
+        <div class="summary-chip" id="sc-chips-end">
+          <div class="sc-label">Chips Out</div>
+          <div class="sc-value" id="sc-chips-end-val">—</div>
+          <div class="sc-sub">final counts</div>
+        </div>
+      </div>
+      <div id="chip-count-warning" class="warning-banner" style="display:none;margin-top:6px;">
+        ⚠️ <span id="chip-count-warning-text"></span>
+      </div>
+    </div>
+
+    <!-- Money reconciliation -->
+    <div style="margin-top:4px;" id="money-recon-section">
+      <div class="summary-grid">
+        <div class="summary-chip">
+          <div class="sc-label">Money In</div>
+          <div class="sc-value" id="sc-money-in-val">—</div>
+          <div class="sc-sub">chips + buy-ins + bill</div>
+        </div>
+        <div class="summary-chip">
+          <div class="sc-label">Money Out</div>
+          <div class="sc-value" id="sc-money-out-val">—</div>
+          <div class="sc-sub">dishes + chips cost</div>
+        </div>
+      </div>
+      <div id="money-recon-warning" class="warning-banner" style="display:none;margin-top:6px;">
+        ⚠️ <span id="money-recon-warning-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player list -->
+  <div class="card">
+    <div class="card-title"><span class="suit">♥</span> Players</div>
+    <div id="player-list">
+      <div class="empty-state">Fill in Tab 1 and your row appears here automatically.</div>
+    </div>
+    <button class="btn-primary" onclick="addPlayer()">+ Add Player</button>
+  </div>
+
+  <!-- Settlement -->
+  <div class="card">
+    <div class="card-title"><span class="suit">♣</span> Who Pays Whom</div>
+    <div id="settlement-output">
+      <div class="empty-state">Add players and hit Compute.</div>
+    </div>
+    <button class="btn-primary" onclick="computeSettlement()">Compute Settlement ♣</button>
+  </div>
+
+  <button class="btn-share" onclick="share()">♣ Share Setup</button>
+  <div class="deck-footer">— ♠ ♥ ♦ ♣ —</div>
+</section>
+<nav class="tab-bar">
+  <div class="tab-bar-inner">
+    <button class="tab-btn active" id="tbtn1" onclick="switchTab('tab1')">♠ My Bill</button>
+    <button class="tab-btn"        id="tbtn2" onclick="switchTab('tab2')">♣ Settlement</button>
+  </div>
+</nav>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+//  SESSION + STATE
+// ═══════════════════════════════════════════════════════════
+
+const SESSION_ID = (() => {
+  let id = localStorage.getItem('pns_sid');
+  if (!id) {
+    id = 'sid_' + Math.random().toString(36).slice(2, 9);
+    localStorage.setItem('pns_sid', id);
+  }
+  return id;
+})();
+
+// Each player: { id, name, chipsBought, chipsCost, chipsEnd, myDishes, buyIn, locked }
+let players = [];
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+
+const $    = id => document.getElementById(id);
+const gv   = id => parseFloat($(id).value) || 0;
+const gc   = id => $(id).checked;
+const fmt  = n  => '$' + Math.abs(n).toFixed(2);
+const fmtS = n  => (n >= 0 ? '+$' : '-$') + Math.abs(n).toFixed(2);
+const fmtN = n  => (n >= 0 ? '' : '-') + '$' + Math.abs(n).toFixed(2);  // no leading +
+const esc  = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+// ═══════════════════════════════════════════════════════════
+//  FORMULA
+//
+//  costPerChip  = $ value of one chip (same for everyone)
+//  myChipsCost  = chipsBought × costPerChip  (what this player paid)
+//  chipPnL      = (chipsEnd − chipsBought) × costPerChip
+//               = net chips gained/lost × value per chip
+//
+//  Normal player:
+//    balance = chipPnL − myDishes − buyIn
+//
+//  Bill payer (covered the full table bill upfront):
+//    Others owe them back the full tableBill.
+//    They still pay their own dishes (included in tableBill).
+//    balance = chipPnL − myDishes − buyIn + tableBill
+// ═══════════════════════════════════════════════════════════
+
+function computeBalance({ chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn, tipShare }) {
+  const cb  = chipsBought || 0;
+  const cpc = costPerChip || 0;
+  const ce  = chipsEnd    || 0;
+  const md  = myDishes    || 0;
+  const tb  = tableBill   || 0;
+  const bi  = buyIn       || 0;
+  const ts  = tipShare    || 0;
+
+  // net chip gain/loss in dollars
+  const chipPnL = (ce - cb) * cpc;
+
+  const balance = chipPnL - md - bi - ts + (isBillPayer ? tb : 0);
+
+  return { chipPnL, myChipsCost: cb * cpc, balance };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  $('tab1').classList.toggle('active', tab === 'tab1');
+  $('tab2').classList.toggle('active', tab === 'tab2');
+  $('tbtn1').classList.toggle('active', tab === 'tab1');
+  $('tbtn2').classList.toggle('active', tab === 'tab2');
+  if (tab === 'tab2') {
+    refreshSharedFields();
+    refreshBillPayerDropdown();
+    refreshPlayerComputedAll();
+    refreshSummary();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 1 — DISH HELPERS
+// ═══════════════════════════════════════════════════════════
+
+function addDish() {
+  const row = document.createElement('div');
+  row.className = 'dish-row';
+  row.innerHTML = `
+    <input type="number" class="dish-input" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()">
+    <button class="btn-icon" onclick="removeDish(this)">−</button>`;
+  $('dish-list').appendChild(row);
+  const newInput = row.querySelector('input');
+  newInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); focusNext(newInput); }
+  });
+  newInput.focus();
+}
+
+function removeDish(btn) {
+  btn.closest('.dish-row').remove();
+  onAnyInput();
+}
+
+function getDishTotal() {
+  return Array.from(document.querySelectorAll('.dish-input'))
+    .reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+}
+
+function toggleCheck(id) {
+  $(id).checked = !$(id).checked;
+  onAnyInput();
+}
+
+function toggleBuyin() {
+  $('buyin-amount-wrap').style.display = gc('t1-buyin-toggle') ? 'block' : 'none';
+  onAnyInput();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 1 — MAIN CALCULATE
+// ═══════════════════════════════════════════════════════════
+
+function onAnyInput() {
+  calculateTab1();
+  saveTab1();
+  syncMyRowToPlayers();
+}
+
+function calculateTab1() {
+  const myChipsCost = gv('t1-chips-cost');
+  const chipsBought = gv('t1-chips-bought');
+  const chipsEnd    = gv('t1-chips-end');
+  const tableBill   = gv('t1-total-bill');
+  const myDishes    = getDishTotal();
+  const isBillPayer = gc('t1-covered');
+  const buyInOn     = gc('t1-buyin-toggle');
+  const buyIn       = buyInOn ? gv('t1-buyin') : 0;
+  const costPerChip = chipsBought > 0 ? myChipsCost / chipsBought : 0;
+
+  const sec = $('result-section');
+  if (!(chipsBought || myChipsCost || chipsEnd || myDishes || tableBill)) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = 'block';
+
+  const { chipPnL, balance } = computeBalance({
+    chipsBought, costPerChip, chipsEnd, myDishes, tableBill, isBillPayer, buyIn,
+  });
+
+  // Formula display
+  let html = `
+    <div class="fexpr">chipPnL = (chipsEnd − chipsBought) × (myChipsCost ÷ chipsBought)</div>
+    <div class="fline"><span class="fname">My chips cost</span><span class="fval neg">−${fmt(myChipsCost)}</span></div>
+    <div class="fline"><span class="fname">Chips bought</span><span class="fval">${chipsBought}</span></div>
+    <div class="fline"><span class="fname">Chips at end</span><span class="fval">${chipsEnd}</span></div>
+    <div class="fline"><span class="fname">Chip P&amp;L</span>
+      <span class="fval ${chipPnL >= 0 ? 'pos' : 'neg'}">${fmtS(chipPnL)}</span></div>
+    <hr class="fdivider">`;
+
+  if (isBillPayer) {
+    html += `
+    <div class="fexpr">Balance = chipPnL − myDishes − buyIn + tableBill</div>
+    <div class="fexpr">You covered the table — you're owed back the full bill.</div>
+    <div class="fline"><span class="fname">My dishes</span>
+      <span class="fval neg">−${fmt(myDishes)}</span></div>
+    ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
+      <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}
+    <div class="fline"><span class="fname">Table bill (owed to me)</span>
+      <span class="fval pos">+${fmt(tableBill)}</span></div>`;
+  } else {
+    html += `
+    <div class="fexpr">Balance = chipPnL − myDishes − buyIn</div>
+    <div class="fline"><span class="fname">My dishes</span>
+      <span class="fval neg">−${fmt(myDishes)}</span></div>
+    ${buyInOn ? `<div class="fline"><span class="fname">Buy-in</span>
+      <span class="fval neg">−${fmt(buyIn)}</span></div>` : ''}`;
+  }
+
+  html += `
+    <hr class="fdivider">
+    <div class="fline">
+      <span class="fname" style="font-weight:700;color:var(--ink)">Final Balance</span>
+      <span class="fval ${balance >= 0 ? 'pos' : 'neg'}" style="font-size:1rem">${fmtS(balance)}</span>
+    </div>`;
+
+  $('formula-box').innerHTML = html;
+
+  const cls = balance > .005 ? 'win' : balance < -.005 ? 'loss' : 'zero';
+  $('result-banner').className  = 'result-banner ' + cls;
+  $('result-label').textContent  = balance > .005 ? 'You are owed' : balance < -.005 ? 'You owe' : 'Balance';
+  $('result-amount').textContent = Math.abs(balance) > .005 ? fmt(balance) : '$0.00';
+  $('result-sub').textContent    = balance > .005 ? 'Collect from the group 🎉'
+                                 : balance < -.005 ? 'Pay up, friend 😬'
+                                 : "You're square ✓";
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SYNC TAB 1 → PLAYERS ARRAY
+// ═══════════════════════════════════════════════════════════
+
+function syncMyRowToPlayers() {
+  const name = $('t1-name').value.trim();
+  const idx  = players.findIndex(p => p.id === SESSION_ID);
+
+  if (!name) {
+    if (idx !== -1) { players.splice(idx, 1); savePlayers(); }
+    return;
+  }
+
+  const entry = {
+    id:          SESSION_ID,
+    name,
+    locked:      true,
+    chipsBought: gv('t1-chips-bought'),
+    chipsEnd:    gv('t1-chips-end'),
+    myDishes:    getDishTotal(),
+    buyIn:       gc('t1-buyin-toggle') ? gv('t1-buyin') : 0,
+  };
+
+  if (idx !== -1) players[idx] = entry;
+  else            players.unshift(entry);
+
+  savePlayers();
+
+  // If Tab 2 is visible, update it without rebuilding inputs (no keyboard kill)
+  if ($('tab2').classList.contains('active')) {
+    refreshSharedFields();
+    refreshBillPayerDropdown();
+    refreshPlayerComputedAll();
+    refreshSummary();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2: SHARED FIELDS
+//  Table bill mirrors Tab 1 and becomes read-only when set.
+// ═══════════════════════════════════════════════════════════
+
+function refreshSharedFields() {
+  // Cost per chip = myChipsCost ÷ chipsBought (both from Tab 1)
+  const t1cost     = parseFloat($('t1-chips-cost').value)   || 0;
+  const t1bought   = parseFloat($('t1-chips-bought').value) || 0;
+  const costPerChip = (t1cost > 0 && t1bought > 0) ? t1cost / t1bought : 0;
+
+  const costEl   = $('t2-chips-cost');
+  const costNote = $('t2-chips-cost-note');
+  if (costPerChip > 0) {
+    costEl.value    = costPerChip.toFixed(4).replace(/\.?0+$/, '');
+    costEl.readOnly = true;
+    costNote.style.display = 'block';
+  } else {
+    costEl.readOnly = false;
+    costNote.style.display = 'none';
+  }
+
+  const t1bill   = $('t1-total-bill').value.trim();
+  const billEl   = $('t2-table-bill');
+  const billNote = $('t2-table-bill-note');
+  if (t1bill) {
+    billEl.value    = t1bill;
+    billEl.readOnly = true;
+    billNote.style.display = 'block';
+  } else {
+    billEl.readOnly = false;
+    billNote.style.display = 'none';
+  }
+}
+
+function onSharedChange() {
+  saveShared();
+  refreshBillPayerDropdown();
+  refreshPlayerComputedAll();
+  refreshSummary();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2: BILL-PAYER DROPDOWN
+//  Surgically rebuilds only the <option> elements.
+// ═══════════════════════════════════════════════════════════
+
+function refreshBillPayerDropdown() {
+  const bp   = $('t2-bill-payer');
+  const prev = bp.value;
+
+  while (bp.options.length > 1) bp.remove(1);
+
+  players.filter(p => p.name && p.name.trim()).forEach(p => {
+    bp.add(new Option(p.name.trim(), p.id));
+  });
+
+  bp.value = prev;
+  if (!bp.value) bp.selectedIndex = 0;
+
+  // Auto-select if Tab 1 has "covered bill" checked for this session
+  if (gc('t1-covered')) {
+    if (Array.from(bp.options).some(o => o.value === SESSION_ID)) {
+      bp.value = SESSION_ID;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2: PLAYER LIST
+//
+//  buildPlayerList() — full DOM build, only on add/remove
+//  refreshPlayerComputed(p) — updates only the bottom computed row
+//  refreshPlayerComputedAll() — updates all computed rows
+//
+//  Inputs are never destroyed during typing → keyboard stays up.
+// ═══════════════════════════════════════════════════════════
+
+function buildPlayerList() {
+  const list = $('player-list');
+  list.innerHTML = '';
+
+  if (!players.length) {
+    list.innerHTML = '<div class="empty-state">Fill in Tab 1 and your row appears here automatically.</div>';
+    return;
+  }
+
+  players.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'player-row' + (p.locked ? ' locked-row' : '');
+    div.dataset.pid = p.id;
+
+    const ro = p.locked ? 'readonly' : '';
+
+    div.innerHTML = `
+      <div class="player-row-header">
+        ${p.locked
+          ? `<span class="player-name-display">${esc(p.name)}</span>`
+          : `<input class="player-name-input" type="text"
+                    value="${esc(p.name)}" placeholder="Player name"
+                    oninput="onPlayerNameInput(this, '${p.id}')">
+             <button class="btn-remove" onclick="removePlayer('${p.id}')">Remove</button>`}
+      </div>
+      <div class="player-fields-grid">
+        <div class="pfield">
+          <label>Chips Bought</label>
+          <input type="number" step="1" min="0"
+                 value="${p.chipsBought || ''}" placeholder="count" ${ro}
+                 ${p.locked ? `onclick="jumpToTab1('t1-chips-bought')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'chipsBought')"`}>
+        </div>
+        <div class="pfield">
+          <label>Chips at End</label>
+          <input type="number" step="1" min="0"
+                 value="${p.chipsEnd || ''}" placeholder="count" ${ro}
+                 ${p.locked ? `onclick="jumpToTab1('t1-chips-end')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'chipsEnd')"`}>
+        </div>
+        <div class="pfield">
+          <label>My Dishes ($)</label>
+          <input type="number" step="0.01" min="0"
+                 value="${p.myDishes || ''}" placeholder="0.00" ${ro}
+                 ${p.locked ? `onclick="jumpToTab1('dish')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'myDishes')"`}>
+        </div>
+        <div class="pfield">
+          <label>Buy-in ($)</label>
+          <input type="number" step="0.01" min="0"
+                 value="${p.buyIn || ''}" placeholder="0.00" ${ro}
+                 ${p.locked ? `onclick="jumpToTab1('t1-buyin')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'buyIn')"`}>
+        </div>
+      </div>
+      <div class="player-computed" id="pc-${p.id}"></div>`;
+
+    list.appendChild(div);
+  });
+}
+
+function refreshPlayerComputed(p) {
+  const el = $('pc-' + p.id);
+  if (!el) return;
+
+  const tableBill   = gv('t2-table-bill');
+  const costPerChip = gv('t2-chips-cost');
+  const tipPct      = gv('t2-tip-pct');
+  const billPayerId = $('t2-bill-payer').value;
+  const isBP        = p.id === billPayerId;
+
+  // tip share: proportional to this player's dishes vs total table bill
+  const tipShare = tableBill > 0 ? (p.myDishes || 0) / tableBill * (tableBill * tipPct / 100) : 0;
+  // simplifies to: myDishes * tipPct / 100
+  // kept explicit for clarity
+
+  const { chipPnL, balance } = computeBalance({
+    chipsBought: p.chipsBought || 0,
+    costPerChip,
+    chipsEnd:    p.chipsEnd    || 0,
+    myDishes:    p.myDishes    || 0,
+    tableBill,
+    isBillPayer: isBP,
+    buyIn:       p.buyIn       || 0,
+    tipShare,
+  });
+
+  const tipLine = tipPct > 0 && tipShare > 0
+    ? `<div class="pc-item">
+         <div class="pc-label">Tip Share</div>
+         <div class="pc-val neg">−${fmt(tipShare)}</div>
+       </div>` : '';
+
+  el.innerHTML = `
+    <div class="pc-item">
+      <div class="pc-label">Chip P&amp;L</div>
+      <div class="pc-val ${chipPnL >= 0 ? 'pos' : 'neg'}">${fmtS(chipPnL)}</div>
+    </div>
+    ${tipLine}
+    <div class="pc-item">
+      <div class="pc-label">Balance${isBP ? ' 🧾' : ''}</div>
+      <div class="pc-val ${balance >= 0 ? 'pos' : 'neg'}">${fmtS(balance)}</div>
+    </div>`;
+}
+
+function refreshPlayerComputedAll() {
+  players.forEach(refreshPlayerComputed);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2: PLAYER INPUT HANDLERS
+//  Update data in-place → only the computed row is touched.
+// ═══════════════════════════════════════════════════════════
+
+function onPlayerNameInput(el, id) {
+  const p = players.find(p => p.id === id);
+  if (!p || p.locked) return;
+  p.name = el.value;
+  savePlayers();
+  refreshBillPayerDropdown();
+  refreshSummary();
+}
+
+function onPlayerFieldInput(el, id, field) {
+  const p = players.find(p => p.id === id);
+  if (!p || p.locked) return;
+  p[field] = parseFloat(el.value) || 0;
+  savePlayers();
+  refreshPlayerComputed(p);
+  refreshSummary();
+}
+
+function addPlayer() {
+  players.push({
+    id: 'manual_' + Date.now(), name: '', locked: false,
+    chipsBought: 0, chipsEnd: 0, myDishes: 0, buyIn: 0,
+  });
+  savePlayers();
+  buildPlayerList();
+  refreshBillPayerDropdown();
+  refreshPlayerComputedAll();
+  refreshSummary();
+  attachRipples();
+}
+
+function removePlayer(id) {
+  players = players.filter(p => p.id !== id);
+  savePlayers();
+  buildPlayerList();
+  refreshBillPayerDropdown();
+  refreshPlayerComputedAll();
+  refreshSummary();
+  attachRipples();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2: SUMMARY + RECONCILIATION
+// ═══════════════════════════════════════════════════════════
+
+function refreshSummary() {
+  const tableBill   = gv('t2-table-bill');
+  const costPerChip = gv('t2-chips-cost');
+  const tipPct      = gv('t2-tip-pct');
+  const billPayerId = $('t2-bill-payer').value;
+  const active      = players.filter(p => p.name && p.name.trim());
+
+  // Update tip amount display
+  const tipTotal = tableBill * tipPct / 100;
+  $('t2-tip-amt').value = tipTotal > 0 ? tipTotal.toFixed(2) : '';
+
+  // ── Balance & Chip P&L totals ──
+  let totalPnL = 0, netBal = 0;
+  active.forEach(p => {
+    const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+    const { chipPnL, balance } = computeBalance({
+      chipsBought: p.chipsBought || 0, costPerChip,
+      chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
+      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare,
+    });
+    totalPnL += chipPnL;
+    netBal   += balance;
+  });
+
+  $('sc-chip-pnl-val').textContent = active.length ? fmtS(totalPnL) : '—';
+  $('sc-net-val').textContent      = active.length ? fmtN(netBal)   : '—';
+
+  // ── Chip count reconciliation ──
+  let totalChipsBought = 0, totalChipsEnd = 0;
+  active.forEach(p => {
+    totalChipsBought += p.chipsBought || 0;
+    totalChipsEnd    += p.chipsEnd    || 0;
+  });
+
+  const chipDiff = totalChipsEnd - totalChipsBought;
+  const scStart  = $('sc-chips-start');
+  const scEnd    = $('sc-chips-end');
+  $('sc-chips-start-val').textContent = active.length ? totalChipsBought : '—';
+  $('sc-chips-end-val').textContent   = active.length ? totalChipsEnd    : '—';
+
+  const chipWarn = $('chip-count-warning');
+  if (active.length >= 2 && Math.abs(chipDiff) > 0) {
+    chipWarn.style.display = 'flex';
+    $('chip-count-warning-text').textContent =
+      `Chip counts don't balance — difference of ${Math.abs(chipDiff)} chips.`;
+    scStart.classList.add('mismatch'); scEnd.classList.add('mismatch');
+    scStart.classList.remove('ok');   scEnd.classList.remove('ok');
+  } else if (active.length >= 2) {
+    chipWarn.style.display = 'none';
+    scStart.classList.add('ok'); scEnd.classList.add('ok');
+    scStart.classList.remove('mismatch'); scEnd.classList.remove('mismatch');
+  } else {
+    chipWarn.style.display = 'none';
+    scStart.classList.remove('ok', 'mismatch');
+    scEnd.classList.remove('ok', 'mismatch');
+  }
+
+  // ── Money reconciliation ──
+  // moneyIn  = Σ(myChipsCost × chipsBought proportion) + Σ buyIn + tableBill
+  //          = totalChipsCost + Σ buyIn + tableBill
+  // moneyOut = Σ myDishes + totalChipsCost
+  // Difference = tableBill − Σ myDishes + Σ buyIn = Σ buyIn (expected)
+  const totalChipsCost = active.reduce((s, p) => s + (p.chipsBought || 0) * costPerChip, 0);
+  let totalBuyIn = 0, totalDishes = 0;
+  active.forEach(p => {
+    totalBuyIn   += p.buyIn    || 0;
+    totalDishes  += p.myDishes || 0;
+  });
+
+  const moneyIn   = totalChipsCost + totalBuyIn + tableBill;
+  const moneyOut  = totalDishes + totalChipsCost;
+  const moneyDiff = moneyIn - moneyOut;
+
+  $('sc-money-in-val').textContent  = active.length ? fmt(moneyIn)  : '—';
+  $('sc-money-out-val').textContent = active.length ? fmt(moneyOut) : '—';
+
+  const moneyWarn = $('money-recon-warning');
+  if (active.length >= 2 && Math.abs(moneyDiff) > 0.05) {
+    moneyWarn.style.display = 'flex';
+    $('money-recon-warning-text').textContent = totalBuyIn > 0.05
+      ? `Difference of ${fmt(moneyDiff)} = total buy-ins (${fmt(totalBuyIn)}). Expected.`
+      : `Money doesn't balance — difference of ${fmt(moneyDiff)}. Check dishes vs table bill.`;
+  } else {
+    moneyWarn.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SETTLEMENT — minimum transactions
+// ═══════════════════════════════════════════════════════════
+
+function computeSettlement() {
+  const out         = $('settlement-output');
+  const tableBill   = gv('t2-table-bill');
+  const costPerChip = gv('t2-chips-cost');
+  const tipPct      = gv('t2-tip-pct');
+  const billPayerId = $('t2-bill-payer').value;
+  const active      = players.filter(p => p.name && p.name.trim());
+
+  if (active.length < 2) {
+    out.innerHTML = '<div class="empty-state">Add at least two named players.</div>';
+    return;
+  }
+
+  const bals = active.map(p => {
+    const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
+    const { balance } = computeBalance({
+      chipsBought: p.chipsBought || 0, costPerChip,
+      chipsEnd:    p.chipsEnd    || 0, myDishes: p.myDishes || 0,
+      tableBill, isBillPayer: p.id === billPayerId, buyIn: p.buyIn || 0, tipShare,
+    });
+    return { name: p.name, amount: balance };
+  });
+
+  const creds = bals.filter(b => b.amount >  .005).map(b => ({...b})).sort((a,b) => b.amount - a.amount);
+  const debts = bals.filter(b => b.amount < -.005).map(b => ({...b, amount: -b.amount})).sort((a,b) => b.amount - a.amount);
+
+  if (!creds.length && !debts.length) {
+    out.innerHTML = '<div class="all-clear">✓ Everyone is already square!</div>';
+    return;
+  }
+
+  const txns = [];
+  let ci = 0, di = 0;
+  while (ci < creds.length && di < debts.length) {
+    const t = Math.min(creds[ci].amount, debts[di].amount);
+    txns.push({ from: debts[di].name, to: creds[ci].name, amount: t });
+    creds[ci].amount -= t;
+    debts[di].amount -= t;
+    if (creds[ci].amount < .005) ci++;
+    if (debts[di].amount < .005) di++;
+  }
+
+  if (!txns.length) {
+    out.innerHTML = '<div class="all-clear">✓ Everyone is already square!</div>';
+    return;
+  }
+
+  const ul = document.createElement('ul');
+  ul.className = 'settlement-list';
+  txns.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'settlement-item';
+    li.innerHTML = `
+      <span class="payer">${esc(t.from)}</span>
+      <span class="arrow">→</span>
+      <span class="payee">${esc(t.to)}</span>
+      <span class="amount">${fmt(t.amount)}</span>`;
+    ul.appendChild(li);
+  });
+  out.innerHTML = '';
+  out.appendChild(ul);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+
+function saveTab1() {
+  localStorage.setItem('pns_tab1', JSON.stringify({
+    name:        $('t1-name').value,
+    dishes:      Array.from(document.querySelectorAll('.dish-input')).map(el => el.value),
+    tableBill:   $('t1-total-bill').value,
+    covered:     gc('t1-covered'),
+    chipsCost:   $('t1-chips-cost').value,
+    chipsBought: $('t1-chips-bought').value,
+    chipsEnd:    $('t1-chips-end').value,
+    buyInOn:     gc('t1-buyin-toggle'),
+    buyIn:       $('t1-buyin').value,
+  }));
+}
+
+function loadTab1() {
+  const raw = localStorage.getItem('pns_tab1');
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    $('t1-name').value           = s.name        || '';
+    $('t1-total-bill').value     = s.tableBill   || '';
+    $('t1-chips-cost').value     = s.chipsCost   || '';
+    $('t1-chips-bought').value   = s.chipsBought || '';
+    $('t1-chips-end').value      = s.chipsEnd    || '';
+    $('t1-covered').checked      = !!s.covered;
+    $('t1-buyin-toggle').checked = !!s.buyInOn;
+    if (s.buyInOn) {
+      $('buyin-amount-wrap').style.display = 'block';
+      $('t1-buyin').value = s.buyIn || '';
+    }
+    const list = $('dish-list');
+    list.innerHTML = '';
+    (s.dishes && s.dishes.length ? s.dishes : ['']).forEach((val, i) => {
+      const row = document.createElement('div');
+      row.className = 'dish-row';
+      row.innerHTML = i === 0
+        ? `<input type="number" class="dish-input" placeholder="0.00"
+             min="0" step="0.01" oninput="onAnyInput()" value="${esc(val)}">
+           <button class="btn-icon" onclick="addDish()">+</button>`
+        : `<input type="number" class="dish-input" placeholder="0.00"
+             min="0" step="0.01" oninput="onAnyInput()" value="${esc(val)}">
+           <button class="btn-icon" onclick="removeDish(this)">−</button>`;
+      list.appendChild(row);
+    });
+    calculateTab1();
+    syncMyRowToPlayers();
+  } catch (e) {
+    console.warn('loadTab1:', e);
+  }
+}
+
+function savePlayers() {
+  localStorage.setItem('pns_players', JSON.stringify(players));
+}
+
+function loadPlayers() {
+  try {
+    const raw = localStorage.getItem('pns_players');
+    if (raw) players = JSON.parse(raw);
+  } catch (e) {}
+}
+
+function saveShared() {
+  localStorage.setItem('pns_shared', JSON.stringify({
+    chipsCost: $('t2-chips-cost').readOnly ? '' : $('t2-chips-cost').value,
+    tableBill: $('t2-table-bill').readOnly ? '' : $('t2-table-bill').value,
+    billPayer: $('t2-bill-payer').value,
+  }));
+}
+
+function loadShared() {
+  try {
+    const raw = localStorage.getItem('pns_shared');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.chipsCost) $('t2-chips-cost').value = s.chipsCost;
+    if (s.tableBill) $('t2-table-bill').value = s.tableBill;
+    if (s.billPayer) window._savedBillPayer   = s.billPayer;
+  } catch (e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SHARE & URL PARAMS
+//
+//  Tab 1 params: n, tb, cv, cc, cb, ce, bt, bi  + d[0]..d[n]
+//  Tab 2 params: cpc, t2tb, bp (bill payer name)
+//
+//  On load: each param populates its field ONLY if the field
+//  is currently empty / unchecked. Existing data wins.
+// ═══════════════════════════════════════════════════════════
+
+// Short param keys → field IDs / actions
+const TAB1_PARAMS = [
+  { key: 'n',  id: 't1-name',         type: 'text'     },
+  { key: 'tb', id: 't1-total-bill',   type: 'number'   },
+  { key: 'cv', id: 't1-covered',      type: 'checkbox' },
+  { key: 'cc', id: 't1-chips-cost',   type: 'number'   },
+  { key: 'cb', id: 't1-chips-bought', type: 'number'   },
+  { key: 'ce', id: 't1-chips-end',    type: 'number'   },
+  { key: 'bt', id: 't1-buyin-toggle', type: 'checkbox' },
+  { key: 'bi', id: 't1-buyin',        type: 'number'   },
+];
+
+const TAB2_PARAMS = [
+  { key: 'cpc', id: 't2-chips-cost',  type: 'number'   },
+  { key: 't2b', id: 't2-table-bill',  type: 'number'   },
+  // bill payer stored by name, not session id
+  { key: 'bp',  id: null,             type: 'billpayer' },
+];
+
+function buildShareURL(includeTab1, includeTab2) {
+  const p = new URLSearchParams();
+
+  if (includeTab1) {
+    TAB1_PARAMS.forEach(({ key, id, type }) => {
+      if (type === 'checkbox') {
+        if ($(id).checked) p.set(key, '1');
+      } else {
+        const v = $(id).value.trim();
+        if (v) p.set(key, v);
+      }
+    });
+    // Dishes: only non-empty values
+    const dishes = Array.from(document.querySelectorAll('.dish-input'))
+      .map(el => el.value.trim()).filter(Boolean);
+    dishes.forEach((v, i) => p.set(`d${i}`, v));
+  }
+
+  if (includeTab2) {
+    const cpc = $('t2-chips-cost').value.trim();
+    const t2b = $('t2-table-bill').value.trim();
+    const tip = $('t2-tip-pct').value.trim();
+    if (cpc) p.set('cpc', cpc);
+    if (t2b) p.set('t2b', t2b);
+    if (tip && tip !== '10') p.set('tip', tip); // only encode if not default
+    const bp = $('t2-bill-payer');
+    const bpName = bp.value ? bp.options[bp.selectedIndex].text : '';
+    if (bpName && bpName !== 'Nobody — everyone paid their own') p.set('bp', bpName);
+  }
+
+  const url = location.href.split('?')[0] + '?' + p.toString();
+  return url;
+}
+
+function doShare(url, title) {
+  if (navigator.share) {
+    navigator.share({ title, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied ✓'))
+      .catch(() => {
+        // Fallback: select a temporary textarea
+        const ta = document.createElement('textarea');
+        ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Link copied ✓');
+      });
+  }
+}
+
+function share() {
+  doShare(buildShareURL(true, true), 'Poker Night Split');
+}
+
+let _toastTimer = null;
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─── Read URL params on load ────────────────────────────────
+function applyURLParams() {
+  const p = new URLSearchParams(location.search);
+  if (!p.toString()) return;
+
+  // Tab 1 scalar fields — only fill if currently empty
+  TAB1_PARAMS.forEach(({ key, id, type }) => {
+    const val = p.get(key);
+    if (val === null) return;
+    if (type === 'checkbox') {
+      if (!$(id).checked) $(id).checked = val === '1';
+    } else {
+      if (!$(id).value.trim()) $(id).value = val;
+    }
+  });
+
+  // Dishes — only restore if the single default dish field is empty
+  const dishInputs = Array.from(document.querySelectorAll('.dish-input'));
+  const allEmpty = dishInputs.every(el => !el.value.trim());
+  if (allEmpty) {
+    const dishVals = [];
+    for (let i = 0; p.has(`d${i}`); i++) dishVals.push(p.get(`d${i}`));
+    if (dishVals.length) {
+      const list = $('dish-list');
+      list.innerHTML = '';
+      dishVals.forEach((val, i) => {
+        const row = document.createElement('div');
+        row.className = 'dish-row';
+        row.innerHTML = i === 0
+          ? `<input type="number" class="dish-input" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()" value="${esc(val)}"><button class="btn-icon" onclick="addDish()">+</button>`
+          : `<input type="number" class="dish-input" placeholder="0.00" min="0" step="0.01" oninput="onAnyInput()" value="${esc(val)}"><button class="btn-icon" onclick="removeDish(this)">−</button>`;
+        list.appendChild(row);
+      });
+    }
+  }
+
+  // buyin toggle — show wrapper if now checked
+  if (gc('t1-buyin-toggle')) {
+    $('buyin-amount-wrap').style.display = 'block';
+  }
+
+  // Tab 2 shared fields — only fill if empty and not read-only (derived from Tab 1)
+  const cpc = p.get('cpc');
+  if (cpc && !$('t2-chips-cost').value.trim() && !$('t2-chips-cost').readOnly) {
+    $('t2-chips-cost').value = cpc;
+  }
+  const t2b = p.get('t2b');
+  if (t2b && !$('t2-table-bill').value.trim() && !$('t2-table-bill').readOnly) {
+    $('t2-table-bill').value = t2b;
+  }
+
+  const tip = p.get('tip');
+  if (tip && !$('t2-tip-pct').value) $('t2-tip-pct').value = tip;
+
+  // Bill payer by name — resolved after dropdown is built, stored for later
+  const bp = p.get('bp');
+  if (bp) window._urlBillPayer = bp;
+}
+// ═══════════════════════════════════════════════════════════
+//  JUMP TO TAB 1
+//  Called when a locked player's field is tapped in Tab 2.
+//  Switches to Tab 1 and focuses the corresponding input.
+// ═══════════════════════════════════════════════════════════
+
+function jumpToTab1(fieldId) {
+  switchTab('tab1');
+  // Small delay so the tab transition completes and the element is visible
+  setTimeout(() => {
+    let el;
+    if (fieldId === 'dish') {
+      // Focus the first dish input (or last if more than one)
+      const dishes = document.querySelectorAll('.dish-input');
+      el = dishes[dishes.length - 1];
+    } else if (fieldId === 't1-buyin') {
+      // Ensure buy-in section is visible before focusing
+      if (!gc('t1-buyin-toggle')) {
+        $('t1-buyin-toggle').checked = true;
+        $('buyin-amount-wrap').style.display = 'block';
+      }
+      el = $('t1-buyin');
+    } else {
+      el = $(fieldId);
+    }
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+    }
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RIPPLE EFFECT
+// ═══════════════════════════════════════════════════════════
+
+function attachRipples() {
+  document.querySelectorAll('.btn-primary, .btn-share, .btn-remove').forEach(btn => {
+    btn.addEventListener('touchstart', spawnRipple, { passive: true });
+    btn.addEventListener('mousedown',  spawnRipple);
+  });
+}
+
+function spawnRipple(e) {
+  const btn   = e.currentTarget;
+  const rect  = btn.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  const x     = touch.clientX - rect.left;
+  const y     = touch.clientY - rect.top;
+
+  // Size the ripple to fully cover the button from the tap point
+  const maxDist = Math.max(
+    Math.hypot(x, y),
+    Math.hypot(rect.width - x, y),
+    Math.hypot(x, rect.height - y),
+    Math.hypot(rect.width - x, rect.height - y)
+  );
+  const size = maxDist * 2.2;
+
+  const span = document.createElement('span');
+  span.className    = 'ripple';
+  span.style.left   = x + 'px';
+  span.style.top    = y + 'px';
+  span.style.width  = size + 'px';
+  span.style.height = size + 'px';
+  span.style.marginLeft = -(size / 2) + 'px';
+  span.style.marginTop  = -(size / 2) + 'px';
+
+  btn.appendChild(span);
+  span.addEventListener('animationend', () => span.remove());
+}
+
+// ═══════════════════════════════════════════════════════════
+//  On Enter, move focus to the next visible text/number input
+//  within the same tab panel. On the last one, dismiss keyboard.
+// ═══════════════════════════════════════════════════════════
+
+function focusNext(currentInput) {
+  // Gather all visible, non-readonly inputs in the active tab panel
+  const panel = currentInput.closest('.tab-panel') || document;
+  const inputs = Array.from(panel.querySelectorAll(
+    'input[type="text"]:not([readonly]):not([disabled]),' +
+    'input[type="number"]:not([readonly]):not([disabled])'
+  )).filter(el => el.offsetParent !== null); // only visible
+
+  const idx = inputs.indexOf(currentInput);
+  if (idx !== -1 && idx < inputs.length - 1) {
+    inputs[idx + 1].focus();
+  } else {
+    currentInput.blur(); // dismiss keyboard on last field
+  }
+}
+
+function attachEnterKey() {
+  // Tab 1 — static inputs
+  document.querySelectorAll('#tab1 input[type="text"], #tab1 input[type="number"]')
+    .forEach(el => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          e.preventDefault();
+          focusNext(el);
+        }
+      });
+    });
+
+  // Tab 2 — delegated on player-list (handles dynamically added rows)
+  $('player-list').addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.keyCode === 13) &&
+        (e.target.type === 'text' || e.target.type === 'number') &&
+        !e.target.readOnly) {
+      e.preventDefault();
+      focusNext(e.target);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+
+(function init() {
+  loadPlayers();
+  loadShared();
+  loadTab1();          // populates Tab 1 fields, calls syncMyRowToPlayers
+
+  // Apply URL params AFTER localStorage is loaded — localStorage wins
+  applyURLParams();
+
+  // Re-run calculations in case URL params filled fields
+  calculateTab1();
+  syncMyRowToPlayers();
+
+  buildPlayerList();
+  refreshSharedFields();
+  refreshBillPayerDropdown();
+
+  // Restore bill-payer: localStorage selection takes priority, then URL param by name
+  if (window._savedBillPayer) {
+    $('t2-bill-payer').value = window._savedBillPayer;
+    window._savedBillPayer   = null;
+  } else if (window._urlBillPayer) {
+    const bp = $('t2-bill-payer');
+    const match = Array.from(bp.options).find(o => o.text === window._urlBillPayer);
+    if (match) bp.value = match.value;
+    window._urlBillPayer = null;
+  }
+
+  refreshPlayerComputedAll();
+  refreshSummary();
+  attachEnterKey();
+  attachRipples();
+})();
+</script>
+</body>
+</html>
