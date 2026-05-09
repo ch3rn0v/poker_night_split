@@ -486,7 +486,7 @@ input[readonly] {
         <p class="ro-note" id="t2-chips-cost-note" style="display:none;">↑ from Tab 1</p>
       </div>
       <div>
-        <label class="no-top" for="t2-table-bill">Table Bill ($)</label>
+        <label class="no-top" for="t2-table-bill">Bill + Tips ($)</label>
         <input type="number" id="t2-table-bill" placeholder="0.00" min="0" step="0.01"
                oninput="onSharedChange()">
         <p class="ro-note" id="t2-table-bill-note" style="display:none;">↑ from Tab 1</p>
@@ -856,11 +856,13 @@ function refreshSharedFields() {
     costNote.style.display = 'none';
   }
 
-  const t1bill   = $('t1-total-bill').value.trim();
+  const t1bill   = parseFloat($('t1-total-bill').value) || 0;
+  const tipPctSF = parseFloat($('t2-tip-pct').value)    || 0;
+  const combined = t1bill > 0 ? t1bill * (1 + tipPctSF / 100) : 0;
   const billEl   = $('t2-table-bill');
   const billNote = $('t2-table-bill-note');
-  if (t1bill) {
-    billEl.value    = t1bill;
+  if (t1bill > 0) {
+    billEl.value    = combined.toFixed(2);
     billEl.readOnly = true;
     billNote.style.display = 'block';
   } else {
@@ -872,6 +874,7 @@ function refreshSharedFields() {
 function onSharedChange() {
   saveShared();
   refreshBillPayerDropdown();
+  refreshSharedFields();
   refreshPlayerComputedAll();
   refreshSummary();
 }
@@ -956,18 +959,32 @@ function buildPlayerList() {
   });
 }
 
+// Derives raw tableBill and tipTotal from the combined t2-table-bill field.
+// t2-table-bill stores tableBill * (1 + tipPct/100).
+// If not derived from Tab 1, treat the field value as raw tableBill (tipPct applied on top).
+function getTab2BillFigures() {
+  const combinedBill = gv('t2-table-bill');
+  const tipPct       = gv('t2-tip-pct');
+  const isFromTab1   = $('t2-table-bill').readOnly;
+  // When read-only, field = tableBill * (1 + tipPct/100)
+  // When manual, field is the raw tableBill entered by the user
+  const tableBill = isFromTab1 && tipPct > 0
+    ? combinedBill / (1 + tipPct / 100)
+    : combinedBill;
+  const tipTotal = tableBill * tipPct / 100;
+  return { tableBill, tipTotal, tipPct };
+}
+
 function refreshPlayerComputed(p) {
   const el = $('pc-' + p.id);
   if (!el) return;
 
-  const tableBill   = gv('t2-table-bill');
+  const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
   const costPerChip = gv('t2-chips-cost');
-  const tipPct      = gv('t2-tip-pct');
   const billPayerId = getBillPayerId();
   const isBP        = p.id === billPayerId;
 
   const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
-  const tipTotal = tableBill * tipPct / 100;
 
   const { chipPnL, balance } = computeBalance({
     chipsBought: p.chipsBought || 0,
@@ -1054,15 +1071,10 @@ function removePlayer(id) {
 // ═══════════════════════════════════════════════════════════
 
 function refreshSummary() {
-  const tableBill   = gv('t2-table-bill');
+  const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
   const costPerChip = gv('t2-chips-cost');
-  const tipPct      = gv('t2-tip-pct');
   const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
-
-  // Update tip amount display
-  const tipTotal = tableBill * tipPct / 100;
-  $('t2-tip-amt').value = tipTotal > 0 ? tipTotal.toFixed(2) : '';
 
   // ── Balance & Chip P&L totals ──
   let totalPnL = 0, netBal = 0;
@@ -1165,9 +1177,8 @@ function refreshSummary() {
 
 function computeSettlement() {
   const out         = $('settlement-output');
-  const tableBill   = gv('t2-table-bill');
+  const { tableBill, tipTotal, tipPct } = getTab2BillFigures();
   const costPerChip = gv('t2-chips-cost');
-  const tipPct      = gv('t2-tip-pct');
   const billPayerId = getBillPayerId();
   const active      = players.filter(p => p.name && p.name.trim());
 
@@ -1175,8 +1186,6 @@ function computeSettlement() {
     out.innerHTML = '<div class="empty-state">Add at least two named players.</div>';
     return;
   }
-
-  const tipTotal = tableBill * tipPct / 100;
 
   const bals = active.map(p => {
     const tipShare = tableBill > 0 ? (p.myDishes || 0) * tipPct / 100 : 0;
