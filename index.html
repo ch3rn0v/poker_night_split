@@ -1367,6 +1367,8 @@ function buildShareURL(includeTab1, includeTab2) {
     // Encode settlement state — 1 if results are currently shown
     const settlementHasResults = $('settlement-output').querySelector('.settlement-list, .all-clear');
     if (settlementHasResults) p.set('settled', '1');
+    // Encode the currently active tab
+    if ($('tab2').classList.contains('active')) p.set('tab', 'tab2');
   }
 
   return location.href.split('?')[0] + '?' + p.toString();
@@ -1477,6 +1479,10 @@ function applyURLParams() {
 
   // Auto-compute settlement if it was shown when shared
   if (p.get('settled') === '1') window._autoSettle = true;
+
+  // Restore active tab
+  const urlTab = p.get('tab');
+  if (urlTab) window._urlTab = urlTab;
 
   // Bill payer by name — resolved after dropdown is built, stored for later
   const bp = p.get('bp');
@@ -1638,6 +1644,12 @@ function attachEnterKey() {
   if (window._autoSettle) {
     window._autoSettle = false;
     computeSettlement();
+  }
+
+  // Switch to the tab that was active when shared
+  if (window._urlTab) {
+    switchTab(window._urlTab);
+    window._urlTab = null;
   }
 })();
 </script>
