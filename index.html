@@ -287,12 +287,12 @@ input[readonly] {
   background: var(--felt-card); border: 1.5px solid var(--gold-dim);
   border-radius: 9px; padding: 11px 8px; text-align: center;
 }
-.summary-chip-svg {
-  background: var(--felt-card); border: 1.5px solid var(--gold-dim);
-  border-radius: 9px; display: flex; align-items: center; justify-content: center;
-  padding: 6px;
+.summary-chip-img {
+  background: var(--felt-card) url('img.png') center center / cover no-repeat;
+  border: 1.5px solid var(--gold-dim);
+  border-radius: 9px;
+  min-height: 80px;
 }
-.summary-chip-svg svg { width: 100%; height: auto; max-height: 80px; display: block; }
 .summary-chip.full-width { grid-column: 1 / -1; }
 .sc-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .09em; color: var(--gold-dim); margin-bottom: 3px; }
 .sc-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); }
@@ -493,21 +493,7 @@ input[readonly] {
     <div class="card-title"><span class="suit">♠</span> Night Summary</div>
 
     <div class="summary-grid">
-      <div class="summary-chip-svg">
-        <svg viewBox="0 0 160 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <!-- felt texture circle -->
-          <circle cx="80" cy="45" r="42" fill="#0f2318" stroke="#7a6230" stroke-width="1.5"/>
-          <circle cx="80" cy="45" r="36" fill="none" stroke="#7a6230" stroke-width=".6" stroke-dasharray="4 3"/>
-          <!-- suits -->
-          <text x="80" y="30" text-anchor="middle" font-size="18" fill="#c9a84c" font-family="serif">♠</text>
-          <text x="56" y="52" text-anchor="middle" font-size="16" fill="#e05252" font-family="serif">♥</text>
-          <text x="104" y="52" text-anchor="middle" font-size="16" fill="#e05252" font-family="serif">♦</text>
-          <text x="80" y="68" text-anchor="middle" font-size="16" fill="#c9a84c" font-family="serif">♣</text>
-          <!-- outer ring ticks -->
-          <circle cx="80" cy="45" r="42" fill="none" stroke="#c9a84c" stroke-width="2.5"
-            stroke-dasharray="2 10.5" stroke-dashoffset="0"/>
-        </svg>
-      </div>
+      <div class="summary-chip-img"></div>
       <div class="summary-chip" id="sc-chip-pnl-chip">
         <div class="sc-label">💰 Total Chip P&amp;L</div>
         <div class="sc-value" id="sc-chip-pnl-val">—</div>
@@ -1362,7 +1348,7 @@ function buildShareURL(includeTab1, includeTab2) {
     const tip = $('t2-tip-pct').value.trim();
     if (cpc) p.set('cpc', cpc);
     if (t2b) p.set('t2b', t2b);
-    if (tip && tip !== '10') p.set('tip', tip);
+    if (tip) p.set('tip', tip);
     const bp = $('t2-bill-payer');
     const bpName = bp.value ? bp.options[bp.selectedIndex].text : '';
     if (bpName && bpName !== 'Nobody — everyone paid their own') p.set('bp', bpName);
@@ -1468,7 +1454,7 @@ function applyURLParams() {
   }
 
   const tip = p.get('tip');
-  if (tip && !$('t2-tip-pct').value) $('t2-tip-pct').value = tip;
+  if (tip) $('t2-tip-pct').value = tip;
 
   // Restore manual players — only if there are none already (localStorage wins)
   const manualCount = parseInt(p.get('pc') || '0', 10);
