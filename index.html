@@ -666,6 +666,16 @@ function switchTab(tab) {
     refreshPlayerComputedAll();
     refreshSummary();
   }
+  // Keep the URL's tab param in sync so sharing always reflects the current tab
+  try {
+    if (history.replaceState) {
+      const p = new URLSearchParams(location.search);
+      if (tab === 'tab2') p.set('tab', 'tab2');
+      else p.delete('tab');
+      const qs = p.toString();
+      history.replaceState(null, '', location.href.split('?')[0] + (qs ? '?' + qs : ''));
+    }
+  } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
