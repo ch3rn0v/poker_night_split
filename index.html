@@ -445,7 +445,7 @@ input[readonly] {
     <label for="t1-chips-bought">My Chips Bought (count)</label>
     <input type="number" id="t1-chips-bought" placeholder="e.g. 100" min="0" step="1" oninput="onAnyInput()">
     <label for="t1-chips-end">My Final Chip Count</label>
-    <input type="number" id="t1-chips-end" placeholder="e.g. 85" min="0" step="1" oninput="onAnyInput()">
+    <input type="number" id="t1-chips-end" placeholder="0" min="0" step="1" oninput="onAnyInput()">
     <div class="toggle-row">
       <span class="toggle-label">Optional Buy-in?</span>
       <label class="toggle">
@@ -937,7 +937,7 @@ function buildPlayerList() {
         <div class="pfield">
           <label>Chips at End</label>
           <input type="number" step="1" min="0"
-                 value="${p.chipsEnd || ''}" placeholder="count" ${ro}
+                 value="${p.chipsEnd || ''}" placeholder="0" ${ro}
                  ${p.locked ? `onclick="jumpToTab1('t1-chips-end')"` : `oninput="onPlayerFieldInput(this, '${p.id}', 'chipsEnd')"`}>
         </div>
         <div class="pfield">
@@ -1000,18 +1000,18 @@ function refreshPlayerComputed(p) {
 
   const tipLine = tipPct > 0 && tipShare > 0
     ? `<div class="pc-item">
-         <div class="pc-label">Tip Share</div>
+         <div class="pc-label">🍽️ Tip Share</div>
          <div class="pc-val neg">−${fmt(tipShare)}</div>
        </div>` : '';
 
   el.innerHTML = `
     <div class="pc-item">
-      <div class="pc-label">Chip P&amp;L</div>
+      <div class="pc-label">🎰 Chip P&amp;L</div>
       <div class="pc-val ${chipPnL >= 0 ? 'pos' : 'neg'}">${fmtS(chipPnL)}</div>
     </div>
     ${tipLine}
     <div class="pc-item">
-      <div class="pc-label">Balance${isBP ? ' 🧾' : ''}</div>
+      <div class="pc-label">🧾 Balance</div>
       <div class="pc-val ${balance >= 0 ? 'pos' : 'neg'}">${fmtS(balance)}</div>
     </div>`;
 }
