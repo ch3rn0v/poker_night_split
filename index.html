@@ -482,10 +482,6 @@ input[readonly] {
       </div>
     </div>
 
-    <div id="chip-pnl-warning" class="warning-banner" style="display:none;margin-top:6px;">
-      ⚠️ <span>Total Chip P&amp;L should be $0.00 — chips are zero-sum. Check everyone's chip counts.</span>
-    </div>
-
     <div id="balance-warning" class="warning-banner" style="display:none;">
       ⚠️ <span id="balance-warning-text">Balances don't sum to zero — someone's data may be missing.</span>
     </div>
@@ -1057,23 +1053,13 @@ function refreshSummary() {
 
   $('sc-chip-pnl-val').textContent = active.length ? fmtS(totalPnL) : '—';
 
-  // Chip P&L should always be $0 — chips are zero-sum
+  // Chip P&L colour (the count-based warning below also covers this)
   const pnlChip = $('sc-chip-pnl-chip');
-  const pnlWarn = $('chip-pnl-warning');
-  if (active.length >= 2 && Math.abs(totalPnL) > 0.01) {
-    pnlChip.classList.add('mismatch'); pnlChip.classList.remove('ok');
-    pnlWarn.style.display = 'flex';
-  } else if (active.length >= 2) {
-    pnlChip.classList.add('ok'); pnlChip.classList.remove('mismatch');
-    pnlWarn.style.display = 'none';
-  } else {
-    pnlChip.classList.remove('ok', 'mismatch');
-    pnlWarn.style.display = 'none';
-  }
+  if      (active.length >= 2 && Math.abs(totalPnL) > 0.01) { pnlChip.classList.add('mismatch'); pnlChip.classList.remove('ok'); }
+  else if (active.length >= 2)                               { pnlChip.classList.add('ok');       pnlChip.classList.remove('mismatch'); }
+  else                                                        { pnlChip.classList.remove('ok', 'mismatch'); }
 
   // ── Dishes vs table bill check ──
-  // The settlement is only correct when Σ myDishes (all players) = tableBill.
-  // If they don't match, the bill payer's Tab 1 figure won't equal the settlement total.
   const totalDishesAll = active.reduce((s, p) => s + (p.myDishes || 0), 0);
   const dishesDiff = Math.abs(totalDishesAll - tableBill);
   const dishWarn = $('dishes-warning');
@@ -1086,6 +1072,8 @@ function refreshSummary() {
   } else {
     dishWarn.style.display = 'none';
   }
+
+  // ── Chip count reconciliation (merged with P&L warning) ──
   let totalChipsBought = 0, totalChipsEnd = 0;
   active.forEach(p => {
     totalChipsBought += p.chipsBought || 0;
@@ -1099,12 +1087,16 @@ function refreshSummary() {
   $('sc-chips-end-val').textContent   = active.length ? totalChipsEnd    : '—';
 
   const chipWarn = $('chip-count-warning');
-  if (active.length >= 2 && Math.abs(chipDiff) > 0) {
+  const hasPnlMismatch   = active.length >= 2 && Math.abs(totalPnL) > 0.01;
+  const hasCountMismatch = active.length >= 2 && Math.abs(chipDiff) > 0;
+
+  if (hasPnlMismatch || hasCountMismatch) {
     chipWarn.style.display = 'flex';
-    $('chip-count-warning-text').textContent =
-      `Chip counts don't balance — difference of ${Math.abs(chipDiff)} chips.`;
+    let msg = `Total Chip P&L should be $0.00 — chips are zero-sum.`;
+    if (hasCountMismatch) msg += ` Chip counts differ by ${Math.abs(chipDiff)} chips (in: ${totalChipsBought}, out: ${totalChipsEnd}).`;
+    $('chip-count-warning-text').textContent = msg;
     scStart.classList.add('mismatch'); scEnd.classList.add('mismatch');
-    scStart.classList.remove('ok');   scEnd.classList.remove('ok');
+    scStart.classList.remove('ok');    scEnd.classList.remove('ok');
   } else if (active.length >= 2) {
     chipWarn.style.display = 'none';
     scStart.classList.add('ok'); scEnd.classList.add('ok');
